@@ -25,7 +25,6 @@
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
-        /* Sayfanın aşağı kaymasını tamamen engelliyoruz */
         body {
             background: var(--bg-gradient);
             color: var(--text-main);
@@ -41,7 +40,6 @@
             padding: 15px;
             background: var(--card-bg);
             border-bottom: 1px solid #E2E8F0;
-            box-shadow: 0 4px 10px rgba(148, 163, 184, 0.05);
         }
 
         header h1 {
@@ -52,7 +50,6 @@
             -webkit-text-fill-color: transparent;
         }
 
-        /* Ana İçerik Alanı (Sabit Yükseklik) */
         .main-content {
             flex: 1;
             display: flex;
@@ -63,21 +60,19 @@
         }
 
         .page {
-            display: none; /* Varsayılan olarak gizli */
+            display: none;
             width: 100%;
             max-width: 650px;
             background: var(--card-bg);
             border-radius: 28px;
-            padding: 30px;
+            padding: 25px;
             border: 1px solid rgba(255, 255, 255, 0.7);
             box-shadow: 0 15px 35px rgba(148, 163, 184, 0.12);
             height: 100%;
-            max-height: 500px;
+            max-height: 520px;
             flex-direction: column;
-            justify-content: center;
         }
 
-        /* Aktif sayfayı göster */
         .page.active {
             display: flex;
         }
@@ -85,20 +80,18 @@
         .page-title {
             font-size: 26px;
             font-weight: 700;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             color: #0F172A;
             text-align: center;
         }
 
-        /* Büyük Yaşlı Dostu Butonlar */
         .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 12px;
-            width: 100%;
-            padding: 22px;
-            font-size: 26px;
+            padding: 20px;
+            font-size: 24px;
             font-weight: 700;
             border: none;
             border-radius: 20px;
@@ -109,9 +102,9 @@
         .btn-voice {
             background: var(--brand-gradient);
             color: white;
-            box-shadow: 0 12px 24px rgba(59, 130, 246, 0.3);
-            font-size: 28px;
-            padding: 24px;
+            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.2);
+            width: 100%;
+            margin-bottom: 15px;
         }
 
         .btn-voice.recording {
@@ -119,18 +112,37 @@
             animation: pulse 1.8s infinite;
         }
 
-        .btn-success {
-            background: var(--success-gradient);
-            color: white;
+        /* YAZI GİRİŞ ALANI GÜNCELLEMESİ */
+        .text-input-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
         }
 
-        .btn-neutral {
-            background: #F1F5F9;
-            color: #475569;
+        .text-input {
+            flex: 1;
+            padding: 18px;
+            font-size: 22px;
             border: 2px solid #E2E8F0;
+            border-radius: 18px;
+            outline: none;
+            color: var(--text-main);
         }
 
-        /* Mesajlaşma Alanı Kontrolleri */
+        .text-input:focus {
+            border-color: var(--brand-color);
+        }
+
+        .btn-send {
+            background: var(--brand-color);
+            color: white;
+            border-radius: 18px;
+            padding: 0 25px;
+        }
+
+        .btn-success { background: var(--success-gradient); color: white; }
+        .btn-neutral { background: #F1F5F9; color: #475569; border: 2px solid #E2E8F0; }
+
         .chat-container {
             background: #F8FAFC;
             border-radius: 22px;
@@ -170,65 +182,14 @@
             align-self: flex-end;
         }
 
-        /* İlaç Listesi Kontrolleri */
-        .routine-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            overflow-y: auto;
-            flex: 1;
-        }
+        .routine-list { display: flex; flex-direction: column; gap: 15px; overflow-y: auto; flex: 1; }
+        .routine-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 20px; }
+        .routine-item.done { background: #F0FDF4; border-color: #BBF7D0; }
 
-        .routine-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 15px;
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
-            border-radius: 20px;
-        }
-
-        .routine-item.done {
-            background: #F0FDF4;
-            border-color: #BBF7D0;
-        }
-
-        /* ALT GEZİNME MENÜSÜ (BÜYÜK VE SABİT) */
-        nav {
-            background: #FFFFFF;
-            border-top: 2px solid #E2E8F0;
-            display: flex;
-            width: 100%;
-            height: 100px;
-        }
-
-        .nav-btn {
-            flex: 1;
-            background: none;
-            border: none;
-            outline: none;
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text-muted);
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            transition: all 0.2s ease;
-        }
-
-        .nav-btn span:first-child {
-            font-size: 32px; /* İkon boyutu */
-        }
-
-        .nav-btn.active {
-            color: var(--brand-color);
-            background: #F0F7FF;
-            border-top: 4px solid var(--brand-color);
-        }
+        nav { background: #FFFFFF; border-top: 2px solid #E2E8F0; display: flex; width: 100%; height: 100px; }
+        .nav-btn { flex: 1; background: none; border: none; font-size: 20px; font-weight: 700; color: var(--text-muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+        .nav-btn span:first-child { font-size: 32px; }
+        .nav-btn.active { color: var(--brand-color); background: #F0F7FF; border-top: 4px solid var(--brand-color); }
 
         @keyframes pulse {
             0% { transform: scale(1); }
@@ -239,28 +200,33 @@
 </head>
 <body>
 
-    <!-- Üst Başlık -->
     <header>
         <h1>Yanımda Al</h1>
     </header>
 
-    <!-- Sayfa İçerikleri (Sadece aktif olan görünür) -->
     <div class="main-content">
-
-        <!-- 1. SAYFA: SOHBET (VARSAYILAN) -->
+        <!-- 1. SAYFA: SOHBET -->
         <div class="page active" id="page-sohbet">
             <div class="page-title">💬 Refakatçi Sohbeti</div>
             <div class="chat-container" id="chatScroll">
                 <div class="chat-box" id="chatBox">
-                    <div class="chat-msg msg-ai">Merhaba Ahmet Amca, sesini duymak çok güzel. Bugün nasılsın?</div>
+                    <div class="chat-msg msg-ai">Merhaba Ahmet Amca, sesini duymak veya senden haber almak çok güzel. Bugün nasılsın?</div>
                 </div>
             </div>
+            
+            <!-- Sesli Arayüz Butonu -->
             <button class="btn btn-voice" id="voiceBtn" onclick="toggleVoice()">
                 🎤 <span id="btnText">Konuşmak İçin Basın</span>
             </button>
+
+            <!-- YAZILI INTERAKTIF ALAN -->
+            <div class="text-input-container">
+                <input type="text" id="userInput" class="text-input" placeholder="Buraya yazabilirsiniz..." onkeypress="handleKeyPress(event)">
+                <button class="btn btn-send" onclick="sendTextMessage()">Gönder</button>
+            </div>
         </div>
 
-        <!-- 2. SAYFA: İLAÇLAR VE GÖREVLER -->
+        <!-- 2. SAYFA: İLAÇLAR -->
         <div class="page" id="page-ilaclar">
             <div class="page-title">📋 Bugünkü İlaçlarım</div>
             <div class="routine-list">
@@ -271,7 +237,6 @@
                     </div>
                     <button class="btn btn-success" style="width:auto; padding: 10px 20px; font-size: 18px;" onclick="takeMed('med1')">İçtim</button>
                 </div>
-
                 <div class="routine-item" id="med2">
                     <div>
                         <strong style="display:block; font-size:22px;">📸 Vitamin Takviyesi</strong>
@@ -285,7 +250,7 @@
             </div>
         </div>
 
-        <!-- 3. SAYFA: SABAH KONTROLÜ -->
+        <!-- 3. SAYFA: DURUM -->
         <div class="page" id="page-durum">
             <div class="page-title">☀️ Günlük Sağlık Kontrolü</div>
             <div id="checkinCard" style="text-align: center; display: flex; flex-direction: column; gap: 20px; justify-content: center; height: 100%;">
@@ -294,63 +259,166 @@
                 <button class="btn btn-neutral" style="background: #FFFBEB; color: #B45309; border-color: #FDE68A;" onclick="completeCheckin('Biraz halsizim')">😐 Biraz Halsizim</button>
             </div>
         </div>
-
     </div>
 
-    <!-- ALT BÜYÜK GEZİNME MENÜSÜ -->
     <nav>
-        <button class="nav-btn active" id="nav-sohbet" onclick="switchPage('sohbet')">
-            <span>💬</span>
-            <span>Sohbet</span>
-        </button>
-        <button class="nav-btn" id="nav-ilaclar" onclick="switchPage('ilaclar')">
-            <span>💊</span>
-            <span>İlaçlarım</span>
-        </button>
-        <button class="nav-btn" id="nav-durum" onclick="switchPage('durum')">
-            <span>☀️</span>
-            <span>Durumum</span>
-        </button>
+        <button class="nav-btn active" id="nav-sohbet" onclick="switchPage('sohbet')"><span>💬</span><span>Sohbet</span></button>
+        <button class="nav-btn" id="nav-ilaclar" onclick="switchPage('ilaclar')"><span>💊</span><span>İlaçlarım</span></button>
+        <button class="nav-btn" id="nav-durum" onclick="switchPage('durum')"><span>☀️</span><span>Durumum</span></button>
     </nav>
 
     <script>
-        let isRecording = false;
-        const voiceBtn = document.getElementById('voiceBtn');
-        const btnText = document.getElementById('btnText');
-        const chatBox = document.getElementById('chatBox');
-        const chatScroll = document.getElementById('chatScroll');
+       let isRecording = false;
+       let mediaRecorder = null;
+       let audioChunks = [];
+       let stream = null;
 
-        // Sekme Değiştirme Fonksiyonu (Scroll'u sıfırlar, ekranı sabit tutar)
+       const voiceBtn = document.getElementById('voiceBtn');
+       const btnText = document.getElementById('btnText');
+       const chatBox = document.getElementById('chatBox');
+       const chatScroll = document.getElementById('chatScroll');
+       const userInput = document.getElementById('userInput');
+
+        const API_BASE_URL = "http://127.0.0.1:8000/api";
         function switchPage(pageId) {
-            // Tüm sayfaları ve menü butonlarını pasifleştir
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-
-            // Seçilen sayfayı ve butonu aktif et
             document.getElementById(`page-${pageId}`).classList.add('active');
             document.getElementById(`nav-${pageId}`).classList.add('active');
         }
 
-        // Sesli asistan simülasyonu
-        function toggleVoice() {
-            if (!isRecording) {
-                isRecording = true;
-                voiceBtn.classList.add('recording');
-                btnText.innerText = "Sizi Dinliyorum...";
-                
-                setTimeout(() => {
-                    if(isRecording) toggleVoice();
-                    addChatMessage("Bugün biraz bahçede dolaştım, hava çok güzel.", "user");
-                    setTimeout(() => {
-                        addChatMessage("Harika Ahmet Amca! Temiz hava almak sana çok iyi gelmiştir. Kendini yormadan dinlenmeyi unutma.", "ai");
-                    }, 1000);
-                }, 3500);
-            } else {
-                isRecording = false;
-                voiceBtn.classList.remove('recording');
-                btnText.innerText = "Konuşmak İçin Basın";
+        // 1. Yazılı Mesaj Gönderme Fonksiyonu
+        async function sendTextMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            // Kullanıcı mesajını ekrana bas ve input'u temizle
+            addChatMessage(text, "user");
+            userInput.value = "";
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/text-chat`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await response.json();
+                addChatMessage(data.ai_response, "ai");
+            } catch (error) {
+                console.error(error);
+                addChatMessage("Bağlantı hatası oluştu Ahmet Amca.", "ai");
             }
         }
+
+        function handleKeyPress(event) {
+            if (event.key === "Enter") {
+                sendTextMessage();
+            }
+        }
+
+async function toggleVoice() {
+
+    // KAYDI BAŞLAT
+    if (!isRecording) {
+
+        try {
+
+            stream = await navigator.mediaDevices.getUserMedia({
+                audio: true
+            });
+
+            audioChunks = [];
+
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0)
+                    audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+
+                const audioBlob = new Blob(audioChunks, {
+                    type: "audio/webm"
+                });
+
+                console.log("Ses Boyutu:", audioBlob.size);
+
+                if (audioBlob.size < 1000) {
+                    addChatMessage("Ses kaydedilemedi.", "ai");
+                    return;
+                }
+
+                const formData = new FormData();
+
+                formData.append(
+                    "file",
+                    audioBlob,
+                    "audio.webm"
+                );
+
+                try {
+
+                    const response = await fetch(
+                        `${API_BASE_URL}/voice-chat`,
+                        {
+                            method: "POST",
+                            body: formData
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    addChatMessage(data.user_transcription, "user");
+                    addChatMessage(data.ai_response, "ai");
+
+                } catch (err) {
+
+                    console.error(err);
+
+                    addChatMessage(
+                        "Sunucuya bağlanılamadı.",
+                        "ai"
+                    );
+                }
+
+                stream.getTracks().forEach(track => track.stop());
+
+            };
+
+            mediaRecorder.start();
+
+            isRecording = true;
+
+            voiceBtn.classList.add("recording");
+
+            btnText.innerText = "Dinliyorum...";
+
+        }
+        catch (err) {
+
+            console.error(err);
+
+            alert("Mikrofona erişim izni verilmedi.");
+
+        }
+
+    }
+
+    // KAYDI DURDUR
+    else {
+
+        isRecording = false;
+
+        voiceBtn.classList.remove("recording");
+
+        btnText.innerText = "Konuşmak İçin Basın";
+
+        mediaRecorder.stop();
+
+    }
+
+}
 
         function addChatMessage(text, sender) {
             const msgDiv = document.createElement('div');
@@ -360,30 +428,49 @@
             chatScroll.scrollTop = chatScroll.scrollHeight;
         }
 
-        function completeCheckin(mood) {
-            document.getElementById('checkinCard').innerHTML = `
-                <span style="font-size: 64px;">✔️</span>
-                <h2 style="color: var(--success-color); font-size: 30px; font-weight: 800;">Durumunuz Bildirildi</h2>
-                <p style="font-size: 20px; color: var(--text-muted);">Aileniz harika olduğunuzu biliyor!</p>
-            `;
-            addChatMessage(`Günlük sağlık kontrolü yapıldı: ${mood}`, "user");
+        async function completeCheckin(mood) {
+            try {
+                await fetch(`${API_BASE_URL}/checkin`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ mood: mood })
+                });
+                document.getElementById('checkinCard').innerHTML = `
+                    <span style="font-size: 64px;">✔️</span>
+                    <h2 style="color: var(--success-color); font-size: 30px; font-weight: 800;">Durumunuz Bildirildi</h2>
+                    <p style="font-size: 20px; color: var(--text-muted); margin-top: 8px;">Aileniz harika olduğunuzu biliyor!</p>
+                `;
+                addChatMessage(`Günlük sağlık kontrolü yapıldı: ${mood}`, "user");
+            } catch (error) { alert("Bağlantı hatası."); }
         }
 
-        function takeMed(id) {
-            const item = document.getElementById(id);
-            item.classList.add('done');
-            item.querySelectorAll('button').forEach(btn => btn.style.display = 'none');
-            
-            const checkMark = document.createElement('span');
-            checkMark.innerText = "✓ Tamamlandı";
-            checkMark.style.color = "var(--success-color)";
-            checkMark.style.fontWeight = "700";
-            item.appendChild(checkMark);
+        async function takeMed(id) {
+            try {
+                await fetch(`${API_BASE_URL}/medication`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ med_id: id })
+                });
+                const item = document.getElementById(id);
+                item.classList.add('done');
+                item.querySelectorAll('button').forEach(btn => btn.style.display = 'none');
+                const checkMark = document.createElement('span');
+                checkMark.innerText = "✓ Tamamlandı";
+                checkMark.style.color = "var(--success-color)";
+                checkMark.style.fontWeight = "700";
+                item.appendChild(checkMark);
+            } catch (error) { alert("Bağlantı hatası."); }
         }
 
-        function simulatePhoto() {
-            alert("📷 Kamera açıldı, kutu doğrulandı!");
-            takeMed('med2');
+        async function simulatePhoto() {
+            const formData = new FormData();
+            formData.append("file", new Blob(), "photo.jpg");
+            try {
+                const response = await fetch(`${API_BASE_URL}/medication/recognize`, { method: "POST", body: formData });
+                const data = await response.json();
+                alert(`📷 ${data.recognized_med} kutusu başarıyla doğrulandı!`);
+                takeMed('med2');
+            } catch (error) { alert("Bağlantı hatası."); }
         }
     </script>
 </body>
