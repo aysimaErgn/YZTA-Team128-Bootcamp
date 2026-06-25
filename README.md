@@ -1,0 +1,212 @@
+# 👵🤖 Yanımda AI
+
+> Siz yanlarında olamadığınızda, biz oradayız.
+
+## Takım İsmi
+
+**Takım 128**
+
+---
+
+## Takım Rolleri
+
+| Rol           | İsim           |
+| ------------- | -------------- |
+| Product Owner | Ayşenur Eşsiz |
+| Scrum Master  | Aysima Ergen |
+| Developer     | Mehmet Vural |
+| Developer     | Ali Osman Kestane |
+| Developer     | Fatih Akçay |
+
+---
+
+## Ürün İsmi
+
+**Yanımda AI**
+
+---
+
+## Ürün Açıklaması
+
+Yanımda AI, yalnız yaşayan yaşlı bireylerin günlük yaşamlarında onlara eşlik eden, sağlık rutinlerini takip eden ve gerektiğinde aile bireylerini bilgilendiren yapay zekâ destekli çok ajanlı bir dijital refakat sistemidir.
+
+Sistem, yaşlı bireyle doğal sohbetler gerçekleştirerek yalnızlık hissini azaltmayı hedeflerken aynı zamanda ilaç kullanımını ve günlük durumunu takip eder. Olası risk durumlarında veya olağandışı davranışlar tespit edildiğinde aile üyelerine erken uyarı gönderir.
+
+Yanımda AI herhangi bir tıbbi teşhis veya tedavi önerisi sunmaz. Sistem yalnızca refakat, rutin takibi ve erken uyarı mekanizması olarak çalışır.
+
+---
+
+## Problem Tanımı
+
+Türkiye'de yaşlı nüfus her geçen yıl artmaktadır. Birçok yaşlı birey yalnız yaşamakta veya çocuklarından farklı şehirlerde bulunmaktadır.
+
+Mevcut çözümler genellikle:
+
+* Pasif acil çağrı sistemleri
+* Sürekli kamera takibi gerektiren çözümler
+* Sadece ilaç hatırlatma uygulamaları
+
+şeklindedir.
+
+Yanımda AI ise kullanıcıyla aktif iletişim kuran, onu tanıyan ve yalnızca gerektiğinde aileyi bilgilendiren daha insancıl bir yaklaşım sunmaktadır.
+
+---
+
+## Ürün Özellikleri
+
+### 🗣️ Refakat Ajanı
+
+* Günlük sesli ve yazılı sohbet
+* Kullanıcının ilgi alanlarını öğrenme
+* Geçmiş konuşmaları hatırlama
+* Proaktif sohbet başlatabilme
+* Yalnızlık hissini azaltmaya yönelik etkileşim
+
+### 💊 Sağlık Ajanı
+
+* İlaç saatlerini takip etme
+* İlaç hatırlatmaları oluşturma
+* Fotoğraf üzerinden ilaç tanıma
+* Günlük sağlık durumu kontrolü
+* Ruh hali ve semptom takibi
+
+### 🚨 Eskalasyon Ajanı
+
+* Check-in eksikliği tespiti
+* Riskli ifadelerin analizi
+* Olağan dışı durumların belirlenmesi
+* Aile üyelerine otomatik bildirim gönderimi
+
+### 🧠 Hafıza Katmanı
+
+* Uzun süreli kullanıcı hafızası
+* İlgi alanlarının saklanması
+* Geçmiş konuşmaların analiz edilmesi
+* Kişiselleştirilmiş deneyim sunulması
+
+### 👨‍👩‍👧‍👦 Aile Paneli
+
+* Haftalık durum özetleri
+* Kullanıcı aktivite takibi
+* İlaç uyumluluğu raporları
+* Acil durum bildirimleri
+* Trend ve analiz ekranları
+
+---
+
+## Hedef Kitle
+
+### Birincil Kullanıcı
+
+* 65 yaş üstü bireyler
+* Yalnız yaşayan yaşlılar
+* Temel teknoloji kullanım becerisine sahip kullanıcılar
+
+### İkincil Kullanıcı (Müşteri)
+
+* Ebeveynleri farklı şehirlerde yaşayan yetişkinler
+* Yaşlı yakınlarının durumunu takip etmek isteyen aile bireyleri
+
+### Kurumsal Kullanıcılar
+
+* Belediyeler
+* Huzurevleri
+* Evde bakım hizmetleri
+* Sağlık sigortası şirketleri
+
+---
+
+## Sistem Mimarisi
+
+```text
+Yaşlı Kullanıcı
+       │
+       ▼
+  Orkestratör
+       │
+ ┌─────┼─────┐
+ ▼     ▼     ▼
+Refakat Sağlık Eskalasyon
+Ajanı  Ajanı   Ajanı
+       │
+       ▼
+ Hafıza Katmanı
+       │
+       ▼
+  Aile Paneli
+```
+
+---
+
+## Teknoloji Yığını
+
+### Frontend
+- HTML5
+- CSS3
+- Vanilla JavaScript
+- MediaRecorder API
+- Web Audio API
+
+### Backend
+- FastAPI
+- Python
+
+### Yapay Zeka
+- Groq
+- Whisper (Speech-to-Text)
+- LangGraph
+
+### Veri Katmanı
+- PostgreSQL
+- Supabase
+- ChromaDB
+
+### DevOps
+- GitHub
+---
+
+# Product Backlog
+
+## Sprint 1 - Temel MVP
+
+* [ ] GitHub Repository Kurulumu
+* [ ] FastAPI Backend Kurulumu
+* [ ] Frontend Kurulumu
+* [ ] GPT Entegrasyonu
+* [ ] Temel Sohbet Sistemi
+* [ ] Kullanıcı Profili Modeli
+* [ ] ChromaDB Kurulumu
+* [ ] Hafıza Sistemi
+* [ ] Temel Chat Arayüzü
+
+---
+
+## Sprint 2 - Sağlık ve Aile Paneli
+
+* [ ] İlaç Hatırlatma Sistemi
+* [ ] İlaç Tanıma Modülü
+* [ ] Agent Orkestrasyonu
+* [ ] Aile Paneli
+* [ ] Haftalık Özetler
+* [ ] Kullanıcı Durum Takibi
+
+---
+
+## Sprint 3 - Eskalasyon ve Yayınlama
+
+* [ ] Anomali Tespiti
+* [ ] Risk Analizi
+* [ ] Bildirim Sistemi
+* [ ] UI/UX İyileştirmeleri
+* [ ] Test Süreçleri
+* [ ] Demo Videosu
+* [ ] Sunum Hazırlığı
+* [ ] Deploy
+
+---
+
+## Proje Hedefi
+
+Yanımda AI ile yalnız yaşayan yaşlı bireylerin yaşam kalitesini artırmak, ailelerin içini rahatlatmak ve teknolojiyi insan odaklı bir refakat deneyimine dönüştürmek amaçlanmaktadır.
+
+**"Siz yanlarında olamadığınızda, biz oradayız."**
