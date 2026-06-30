@@ -6,6 +6,9 @@ import os
 from dotenv import load_dotenv
 import io
 
+# --- SENİN YAZDIĞIN VERİTABANI DOSYASINI İÇERİ AKTARIYORUZ ---
+from database import save_message
+
 app = FastAPI(title="Yanımda Al - Yaşlı Refakatçi API")
 
 app.add_middleware(
@@ -33,10 +36,15 @@ class TextMessageModel(BaseModel):
 # SYSTEM PROMPT (Yapay zekanın bürüneceği ortak kişilik)
 SYSTEM_PROMPT = (
     "Sen 'Yanımda Al' projesinde yalnız yaşayan yaşlılara destek olan sevecen, "
-    "sabırlı ve neşeli bir dijital refakatçi ajansın. Karşındaki kişi 65 yaş üstü "
+    "sabırlı and neşeli bir dijital refakatçi ajansın. Karşındaki kişi 65 yaş üstü "
     "Ahmet Amca. Cümlelerin çok uzun olmasın, onun durumunu sor, empati yap ve "
     "onu motive et. Tıbbi teşhis veya tedavi önerisi verme."
 )
+
+# =====================================================================
+# GÜNCEL: Supabase 'conversations' tablosundan aldığın gerçek UUID bağlandı!
+# =====================================================================
+GECERLI_UUID = "890f8eb3-2734-47d8-864a-df1a33f9a161"
 
 
 # ==========================================
@@ -44,11 +52,9 @@ SYSTEM_PROMPT = (
 # ==========================================
 @app.post("/api/text-chat")
 async def text_chat(data: TextMessageModel):
-    """
-    Ahmet Amca klavyeden yazıp gönderdiğinde doğrudan burası tetiklenir.
-    """
     try:
-        # MODEL GÜNCELLENDİ: "llama-3.1-8b-instant" yapıldı
+        print(f"\n>>>>>> YENİ MESAJ GELDİ: {data.message} <<<<<<\n")
+        
         response = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
@@ -59,11 +65,17 @@ async def text_chat(data: TextMessageModel):
             temperature=0.7
         )
         ai_response = response.choices[0].message.content
+        
+        # --- VERİTABANINA KAYIT (YAZILI SOHBET) ---
+        save_message(conversation_id=GECERLI_UUID, role="user", content=data.message)
+        save_message(conversation_id=GECERLI_UUID, role="assistant", content=ai_response)
+        
+        return {"ai_response": ai_response}
+        
     except Exception as e:
-        print(f"[HATA] {e}")
-        ai_response = "Ahmet Amca yazdıklarını okudum ama sistemimde ufak bir sorun oldu. İyi misin, her şey yolunda mı?"
-
-    return {"ai_response": ai_response}
+        gizli_hata = f"SİSTEM HATASI BULUNDU: {str(e)}"
+        print(gizli_hata)
+        return {"ai_response": gizli_hata}
 
 
 # ==========================================
@@ -71,15 +83,9 @@ async def text_chat(data: TextMessageModel):
 # ==========================================
 @app.post("/api/voice-chat")
 async def voice_chat(file: UploadFile = File(...)):
-    """
-    Windows dosya izin hatalarını ve boş dosya sorunlarını önlemek için 
-    sesi diske yazmadan doğrudan hafıza (BytesIO) üzerinden Whisper'a gönderir.
-    """
     try:
-        # Gelen ses verisini oku
         audio_bytes = await file.read()
         
-        # 1. Boş dosya kontrolü
         if not audio_bytes or len(audio_bytes) < 100:
             print(f"[UYARI] Ahmet Amca'dan boş ses dosyası geldi.")
             return {
@@ -89,19 +95,15 @@ async def voice_chat(file: UploadFile = File(...)):
                 "response": "Ahmet Amca, sesin geldi ama ahizeye tam üfleyemedin galiba, sesini duyamadım. Tekrar söyler misin?"
             }
 
-        # 2. Tarayıcı uzantısını yakala, yoksa varsayılan olarak .wav yap
         ext = os.path.splitext(file.filename)[1] if file.filename else ".wav"
         if not ext or ext == ".blob":
-            ext = ".wav"  # Groq'un tanıması için zorunlu uzantı
+            ext = ".wav" 
             
         custom_filename = f"audio{ext}"
-
-        # 3. Diske yazmak yerine veriyi hafızada sanal bir dosya haline getir
         audio_file_like = io.BytesIO(audio_bytes)
 
-        # 4. Groq Whisper API'sine sanal dosyayı gönder
         transcription = groq_client.audio.transcriptions.create(
-            file=(custom_filename, audio_file_like.read()), # Uzantı bilgisini tuple olarak geçiyoruz
+            file=(custom_filename, audio_file_like.read()), 
             model="whisper-large-v3",
             language="tr",
             response_format="json"
@@ -114,7 +116,6 @@ async def voice_chat(file: UploadFile = File(...)):
             user_text = "Sessizlik"
             ai_response = "Ahmet Amca, sesin geldi ama ne dediğini tam seçemedim. Tekrar söyler misin canım benim?"
         else:
-            # 5. Llama ile sevecen cevap üret
             response = groq_client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[
@@ -125,10 +126,14 @@ async def voice_chat(file: UploadFile = File(...)):
                 temperature=0.7
             )
             ai_response = response.choices[0].message.content
+            
+            # --- VERİTABANINA KAYIT (SESLİ SOHBET) ---
+            save_message(conversation_id=GECERLI_UUID, role="user", content=user_text)
+            save_message(conversation_id=GECERLI_UUID, role="assistant", content=ai_response)
 
     except Exception as e:
-        # Burası patlarsa terminale tam olarak ne hatası olduğunu yazdırıyoruz:
-        print(f"[KRİTİK HATA] Ses işlenirken bir sorun oluştu: {str(e)}")
+        gizli_hata = f"[KRİTİK HATA] Ses işlenirken bir sorun oluştu: {str(e)}"
+        print(gizli_hata)
         user_text = "Ses dosyası işlenirken teknik hata oluştu."
         ai_response = "Ahmet Amca sesini tam alamadım, hattım kesildi galiba. İyi misin, her şey yolunda mı?"
     
