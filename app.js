@@ -47,6 +47,42 @@ function switchPage(pageId) {
     } else {
         historySidebar.style.display = 'none';
     }
+
+    if (pageId === 'durum') {
+        loadCheckinHistory();
+    }
+}
+
+// Günlük check-in geçmişini backend'den çekip listeler
+async function loadCheckinHistory() {
+    const historyBox = document.getElementById('checkinHistory');
+    try {
+        const response = await fetch(`${API_BASE_URL}/checkin/history`);
+        const data = await response.json();
+        const history = data.history || [];
+
+        if (history.length === 0) {
+            historyBox.innerHTML = `<p style="color: var(--text-muted); font-size: 16px;">Henüz kayıt yok.</p>`;
+            return;
+        }
+
+        historyBox.innerHTML = history.map(item => {
+            const date = new Date(item.created_at);
+            const dateStr = date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const timeStr = date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            return `
+                <div class="routine-item">
+                    <div>
+                        <strong style="display:block; font-size:18px;">${item.mood}</strong>
+                        <span style="font-size: 14px; color: var(--text-muted);">${dateStr} • ${timeStr}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error(error);
+        historyBox.innerHTML = `<p style="color: var(--warning-color); font-size: 16px;">Kayıtlar yüklenemedi.</p>`;
+    }
 }
 
 // 1. Supabase'den Konuşma Başlıklarını Çeken Fonksiyon
@@ -229,6 +265,7 @@ async function completeCheckin(mood) {
             <p style="font-size: 20px; color: var(--text-muted); margin-top: 8px;">Aileniz harika olduğunuzu biliyor!</p>
         `;
         appendMessageToUI(`Günlük sağlık kontrolü yapıldı: ${mood}`, "user");
+        loadCheckinHistory();
     } catch (error) { alert("Bağlantı hatası."); }
 }
 

@@ -8,7 +8,7 @@ import io
 from datetime import datetime
 
 # --- SENİN YAZDIĞIN VERİTABANI DOSYASINI İÇERİ AKTARIYORUZ ---
-from database import save_message, create_client, Client
+from database import save_message, create_client, Client, save_checkin, get_checkin_history
 
 app = FastAPI(title="Yanımda Al - Yaşlı Refakatçi API")
 
@@ -197,8 +197,22 @@ async def get_chat_history(conversation_id: str):
 
 @app.post("/api/checkin")
 async def daily_checkin(data: CheckinModel):
-    print(f"[LOG] Ahmet Amca bugün kendini nasıl hissediyor -> {data.mood}")
-    return {"status": "success"}
+    try:
+        print(f"[LOG] Ahmet Amca bugün kendini nasıl hissediyor -> {data.mood}")
+        save_checkin(conversation_id=GECERLI_UUID, mood=data.mood)
+        return {"status": "success"}
+    except Exception as e:
+        print(f"[HATA] Check-in kaydedilemedi: {str(e)}")
+        raise HTTPException(status_code=500, detail="Check-in kaydedilemedi.")
+
+@app.get("/api/checkin/history")
+async def checkin_history(limit: int = 10):
+    try:
+        history = get_checkin_history(conversation_id=GECERLI_UUID, limit=limit)
+        return {"history": history}
+    except Exception as e:
+        print(f"[HATA] Check-in geçmişi alınamadı: {str(e)}")
+        raise HTTPException(status_code=500, detail="Check-in geçmişi alınamadı.")
 
 @app.post("/api/medication")
 async def take_medication(data: MedModel):
