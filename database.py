@@ -40,3 +40,23 @@ def get_conversation_history(conversation_id):
         .order("created_at", desc=False) \
         .execute()
     return response.data
+
+# --- TRELLO GÖREVİ 3: GÜNLÜK DURUM (CHECK-IN) KAYITLARININ TUTULMASI ---
+def save_checkin(conversation_id, mood):
+    """Günlük check-in kaydını 'checkins' tablosuna ekler."""
+    data = {
+        "conversation_id": conversation_id,
+        "mood": mood
+    }
+    response = supabase.table("checkins").insert(data).execute()
+    return response.data
+
+def get_checkin_history(conversation_id, limit=10):
+    """Belirli bir kullanıcının geçmiş check-in kayıtlarını en yeniden eskiye doğru getirir."""
+    response = supabase.table("checkins") \
+        .select("*") \
+        .eq("conversation_id", conversation_id) \
+        .order("created_at", desc=True) \
+        .limit(limit) \
+        .execute()
+    return response.data
