@@ -1,5 +1,7 @@
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 let localStream = null;
+let registerStream = null;
+let registeredBase64Image = null; // Kayıt esnasında çekilen fotoğrafı burada saklayacağız
 
 // Sayfa yüklendiğinde eğer giriş sayfasındaysak kamerayı yaşlı için otomatik hazırla
 window.addEventListener('DOMContentLoaded', () => {
@@ -24,7 +26,10 @@ function switchAuthTab(tabName) {
     }
 }
 
-// Kamerayı Başlatma
+// =====================================================================
+// 1. YAŞLI YÜZ TANIMA GİRİŞ FONKSİYONLARI
+// =====================================================================
+
 async function initWebcam() {
     const video = document.getElementById('webcam');
     if (!video) return;
@@ -32,6 +37,8 @@ async function initWebcam() {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: { width: 400, height: 300 } });
         video.srcObject = localStream;
+        document.getElementById('face-status').innerText = "Kamera hazır. Giriş yapmak için lütfen butona basın.";
+        document.getElementById('face-status').style.color = "var(--text-muted)";
     } catch (err) {
         console.error("Kameraya erişilemedi:", err);
         document.getElementById('face-status').innerText = "Kamera izni verilmedi veya kamera bulunamadı!";
@@ -39,42 +46,37 @@ async function initWebcam() {
     }
 }
 
-// Kamerayı Kapatma
 function stopWebcam() {
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
     }
 }
 
-// =====================================================================
-// SİMÜLASYON / API: YÜZ TANIMA İLE GİRİŞ YAPMA
-// =====================================================================
+// Kameradan anlık fotoğrafı yakalayıp yüz tanıma endpoint'ine gönderen fonksiyon
 async function startFaceRecognition() {
     const video = document.getElementById('webcam');
     const statusText = document.getElementById('face-status');
     
     if (!video || !localStream) {
-        statusText.innerText = "Kamera aktif değil.";
+        if (statusText) statusText.innerText = "Kamera aktif değil.";
         return;
     }
 
-    statusText.innerText = "Yüz taranıyor ve analiz ediliyor...";
-    statusText.style.color = "var(--brand-color)";
+    if (statusText) {
+        statusText.innerText = "Yüzünüz taranıyor ve analiz ediliyor, lütfen bekleyin...";
+        statusText.style.color = "orange";
+    }
 
-    // Arka planda anlık fotoğraf yakalamak için geçici bir canvas oluşturuyoruz
+    // Kare yakalamak için canvas oluşturuyoruz (Boyutları sabitledik)
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = 400;
+    canvas.height = 300;
     const ctx = canvas.getContext('2d');
-    
-    // Videodaki o anki kareyi canvas'a çiz
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    // Fotoğrafı Base64 formatına çevir (örn: data:image/jpeg;base64,/9j/4AAQSkZJR...)
     const base64Image = canvas.toDataURL('image/jpeg');
 
     try {
-        // Python FastAPI Sunucusuna Gönderiyoruz
         const response = await fetch(`${API_BASE_URL}/auth/face-login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -84,28 +86,85 @@ async function startFaceRecognition() {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            statusText.innerText = `✔️ ${data.message}`;
-            statusText.style.color = "green";
+            if (statusText) {
+                statusText.innerText = `✔️ Giriş başarılı! Hoş geldiniz, ${data.name}`;
+                statusText.style.color = "green";
+            }
             stopWebcam();
-            // Giriş başarılı olunca ana sayfaya yönlendir
-            setTimeout(() => { window.location.href = "index.html"; }, 1500);
+            localStorage.setItem('user_id', data.user_id);
+            setTimeout(() => { window.location.href = "index.html"; }, 1200);
         } else {
-            statusText.innerText = data.detail || "Yüz eşleşmedi. Lütfen tekrar deneyin.";
-            statusText.style.color = "red";
+            if (statusText) {
+                statusText.innerText = data.detail || "Yüz eşleşmedi Ahmet Amca. Lütfen tekrar deneyin.";
+                statusText.style.color = "red";
+            }
         }
     } catch (error) {
-        console.error("Yüz tanıma sunucu hatası:", error);
-        statusText.innerText = "Sistem hatası. Sunucuya bağlanılamadı.";
-        statusText.style.color = "red";
+        console.error("Giriş hatası:", error);
+        if (statusText) statusText.innerText = "Sistem hatası. Sunucuya bağlanılamadı.";
     }
 }
 
 // =====================================================================
-// API: AİLE TELEFON VE ŞİFRE İLE GİRİŞ
+// B PLANI: BİLGİLERLE (AD-SOYAD VE YAŞ) GİRİŞ YAPMA FONKSİYONU
+// =====================================================================
+async function loginWithCredentials() {
+    const nameInput = document.getElementById('elderly-login-name').value.trim();
+    const ageInput = document.getElementById('elderly-login-age').value.trim();
+    const statusText = document.getElementById('face-status');
+
+    if (!nameInput || !ageInput) {
+        alert("Lütfen adınızı, soyadınızı ve yaşınızı eksiksiz girin Ahmet Amca!");
+        return;
+    }
+
+    if (statusText) {
+        statusText.innerText = "Bilgileriniz doğrulanıyor, lütfen bekleyin...";
+        statusText.style.color = "orange";
+    }
+
+    try {
+        // Doğrudan localhost portuna yönlendirerek yönlendirme hatalarını bypass ediyoruz
+        const response = await fetch(`http://127.0.0.1:8000/api/auth/credentials-login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: nameInput,
+                age: parseInt(ageInput)
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            if (statusText) {
+                statusText.innerText = `✔️ Giriş başarılı! Hoş geldiniz, ${data.name}`;
+                statusText.style.color = "green";
+            }
+            stopWebcam(); // Kamerayı kapat
+            
+            localStorage.setItem('user_id', data.user_id);
+            alert(`Giriş Başarılı! Ana sayfaya yönlendiriliyorsunuz.`);
+            window.location.href = "index.html";
+        } else {
+            if (statusText) {
+                statusText.innerText = data.detail || "Giriş başarısız.";
+                statusText.style.color = "red";
+            }
+            alert(data.detail || "Giriş başarısız. Bilgilerinizi kontrol edin.");
+        }
+    } catch (error) {
+        console.error("Yazılı giriş hatası:", error);
+        alert("Sunucu bağlantı hatası oluştu.");
+    }
+}
+
+// =====================================================================
+// 2. AİLE / REFAKATÇİ GİRİŞ FONKSİYONU
 // =====================================================================
 async function handleFamilyLogin(event) {
     event.preventDefault();
-    const phone = document.getElementById('login-phone').value;
+    const phone = document.getElementById('login-phone').value.trim();
     const password = document.getElementById('login-password').value;
 
     try {
@@ -115,59 +174,116 @@ async function handleFamilyLogin(event) {
             body: JSON.stringify({ phone, password })
         });
         
+        const data = await response.json();
+        
         if (response.ok) {
-            alert("Giriş Başarılı! Aile paneline yönlendiriliyorsunuz.");
+            alert("Giriş Başarılı!");
             window.location.href = "index.html";
         } else {
-            alert("Hatalı telefon veya şifre!");
+            alert(data.detail || "Hatalı telefon numarası veya şifre!");
         }
     } catch (error) {
-        alert("Bağlantı hatası! (Simüle giriş yapılıyor)");
-        window.location.href = "index.html";
+        console.error(error);
+        alert("Bağlantı hatası!");
     }
 }
 
 // =====================================================================
-// API: HEM YAŞLI HEM AİLE BİLGİLERİNİ TEK SEFERDE KAYDETME (REGISTER)
+// 3. KAYIT OLMA (REGISTER) FONKSİYONLARI
 // =====================================================================
-function openRegisterCamera() {
-    alert("Yaşlı kullanıcının yüz biyometrisi için kamera referansı alındı! (Simüle Edildi)");
-    document.getElementById('reg-camera-status').innerText = "✔️ Yüz verisi başarıyla tarandı.";
-    document.getElementById('reg-camera-status').style.color = "green";
+
+async function openRegisterCamera() {
+    const video = document.getElementById('reg-webcam');
+    const statusText = document.getElementById('reg-camera-status');
+    if (!video) return;
+
+    try {
+        registerStream = await navigator.mediaDevices.getUserMedia({ video: { width: 400, height: 300 } });
+        video.srcObject = registerStream;
+        statusText.innerText = "📷 Kamera aktif. 'Fotoğrafı Yakala' butonuna basın.";
+        statusText.style.color = "var(--brand-color)";
+    } catch (err) {
+        statusText.innerText = "❌ Kamera izni verilmedi veya kamera bulunamadı.";
+        statusText.style.color = "red";
+    }
+}
+
+function captureRegisterFace() {
+    const video = document.getElementById('reg-webcam');
+    const statusText = document.getElementById('reg-camera-status');
+    if (!video || !registerStream) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    registeredBase64Image = canvas.toDataURL('image/jpeg');
+    statusText.innerText = "✔️ Yüz fotoğrafınız hafızaya alındı.";
+    statusText.style.color = "green";
+
+    // Kamerayı durdurarak sistemi rahatlatıyoruz
+    if (registerStream) {
+        registerStream.getTracks().forEach(track => track.stop());
+    }
 }
 
 async function handleRegister(event) {
     event.preventDefault();
+    const statusText = document.getElementById('reg-camera-status');
     
-    // Bilgileri Topla
-    const payload = {
-        elderly: {
-            name: document.getElementById('elderly-name').value,
-            age: parseInt(document.getElementById('elderly-age').value),
-            face_features_registered: true
-        },
-        family: {
-            name: document.getElementById('family-name').value,
-            phone: document.getElementById('family-phone').value,
-            password: document.getElementById('family-password').value
-        }
-    };
+    if (!registeredBase64Image) {
+        alert("Lütfen önce yüzünüzü kameradan taratın!");
+        return;
+    }
 
     try {
+        // A. Önce DeepFace'e yüz fotoğrafını yollayıp vektör alıyoruz
+        const faceResponse = await fetch(`${API_BASE_URL}/auth/register-face`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image_data: registeredBase64Image })
+        });
+
+        const faceData = await faceResponse.json();
+        if (!faceResponse.ok || !faceData.success) {
+            alert("Yüz analizi başarısız oldu. Lütfen tekrar fotoğraf çekilin.");
+            return;
+        }
+
+        const faceVector = faceData.face_vector;
+
+        // B. Şimdi tüm form verilerini ve vektörü paketleyip ana kayıt endpoint'ine atıyoruz
+        const payload = {
+            elderly: {
+                name: document.getElementById('elderly-name').value.trim(),
+                age: parseInt(document.getElementById('elderly-age').value) || 0,
+                face_vector: faceVector
+            },
+            family: {
+                name: document.getElementById('family-name').value.trim(),
+                phone: document.getElementById('family-phone').value.trim(),
+                password: document.getElementById('family-password').value
+            }
+        };
+
         const response = await fetch(`${API_BASE_URL}/auth/register`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
 
+        const resultData = await response.json();
+
         if (response.ok) {
-            alert("Kayıt işlemi başarıyla tamamlandı! Giriş ekranına gidiyorsunuz.");
+            alert("Kayıt işlemi başarıyla tamamlandı! Giriş ekranına yönlendiriliyorsunuz.");
             window.location.href = "login.html";
         } else {
-            alert("Kayıt sırasında bir hata oluştu.");
+            alert("Kayıt hatası: " + (resultData.detail || "Hata oluştu."));
         }
     } catch (error) {
-        alert("Kayıt Başarılı (Simüle Edildi). Giriş ekranına yönlendiriliyorsunuz.");
-        window.location.href = "login.html";
+        console.error("Kayıt hatası:", error);
+        alert("Sunucu bağlantısı kurulamadı.");
     }
 }

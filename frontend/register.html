@@ -29,8 +29,12 @@
                     <div class="form-group">
                         <label>Yüz Tanıma Tanımlama</label>
                         <div class="face-register-box">
-                            <button type="button" class="btn btn-neutral" onclick="openRegisterCamera()">📷 Kamerayı Aç ve Yüzü Kaydet</button>
-                            <span id="reg-camera-status" style="font-size: 14px; color: var(--text-muted); display:block; margin-top:5px;">Kamera henüz tanımlanmadı.</span>
+                            <video id="reg-webcam" autoplay playsinline muted style="width: 100%; max-width: 320px; border-radius: 8px; display: none; background: #000; margin-bottom: 10px;"></video>
+        
+                            <button type="button" class="btn btn-neutral" onclick="document.getElementById('reg-webcam').style.display='block'; openRegisterCamera()">📷 Kamerayı Aç</button>
+                            <button type="button" class="btn btn-primary" onclick="captureRegisterFace()">📸 Fotoğrafı Yakala</button>
+        
+                        <span id="reg-camera-status" style="font-size: 14px; color: var(--text-muted); display:block; margin-top:5px;">Kamera henüz tanımlanmadı.</span>
                         </div>
                     </div>
                 </div>

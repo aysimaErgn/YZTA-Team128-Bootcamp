@@ -255,6 +255,60 @@ async def face_login(request: FaceAuthRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail="Giriş esnasında bir hata oluştu.")
 
+
+# ==========================================
+# 6. AİLE GİRİŞİ & GENEL KAYIT (EKLENENLER)
+# ==========================================
+
+class FamilyLoginModel(BaseModel):
+    phone: str
+    password: str
+
+class FullRegisterModel(BaseModel):
+    elderly: dict
+    family: dict
+
+@app.post("/api/auth/family-login")
+async def family_login(data: FamilyLoginModel):
+    try:
+        # Supabase'den aile telefonuna göre kullanıcıyı arıyoruz
+        response = supabase.table("users").select("*").eq("family_phone", data.phone).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Bu telefon numarasına ait bir kayıt bulunamadı.")
+            
+        user = response.data[0]
+        
+        # Şifre kontrolü (Geliştirme aşaması için düz metin karşılaştırması)
+        if user.get("family_password") != data.password:
+            raise HTTPException(status_code=401, detail="Hatalı şifre girdiniz.")
+            
+        return {"success": True, "message": f"Hoş geldiniz, {user.get('family_name')}", "user_id": user.get("id")}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail="Giriş yapılırken veritabanı hatası oluştu.")
+
+@app.post("/api/auth/register")
+async def register_user_and_family(data: FullRegisterModel):
+    try:
+        # Frontend'den (authorization.js) gelen iç içe nesneleri düzleştirip Supabase tablosuna uygun hale getiriyoruz
+        flat_payload = {
+            "name": data.elderly.get("name"),
+            "age": data.elderly.get("age"),
+            "face_vector": data.elderly.get("face_vector"),  # DeepFace'den gelen 4096 boyutlu array
+            "family_name": data.family.get("name"),
+            "family_phone": data.family.get("phone"),
+            "family_password": data.family.get("password")
+        }
+        
+        # Supabase 'users' tablonuza tek satır olarak ekleme yapıyoruz
+        response = supabase.table("users").insert(flat_payload).execute()
+        return {"success": True, "message": "Kayıt işlemi başarıyla tamamlandı!"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Veritabanı kayıt hatası: {str(e)}")
+
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

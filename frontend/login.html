@@ -18,16 +18,28 @@
             <button class="tab-btn" onclick="switchAuthTab('family')">👨‍👩‍👧‍👦 Aile Girişi</button>
         </div>
 
-        <div id="tab-elderly" class="tab-content active">
-            <div class="face-auth-box">
-                <div class="camera-stream-container">
-                    <video id="webcam" autoplay playsinline muted></video>
-                    <div class="face-overlay">
-                        <div class="scan-line"></div>
-                    </div>
+<div id="tab-elderly" class="tab-content active">
+        <div class="webcam-container">
+            <video id="webcam" autoplay playsinline></video>
+            <div class="camera-overlay"></div>
+            </div>
+            <p id="face-status" class="status-text">Kamera hazırlanıyor...</p>
+    
+            <button type="button" class="btn btn-primary" onclick="startFaceRecognition()">
+            <i class="fas fa-camera"></i> Yüzü Tara ve Giriş Yap
+            </button>
+
+        <div class="alternative-login" style="margin-top: 25px; padding-top: 20px; border-top: 1px dashed #ccc;">
+            <p style="text-align: center; font-weight: bold; color: #555;">Veya Bilgilerinle Giriş Yap:</p>
+            <div class="form-group" style="margin-bottom: 10px;">
+                <input type="text" id="elderly-login-name" class="form-control" placeholder="Adınız Soyadınız (Örn: Ahmet Yılmaz)">
                 </div>
-                <p class="status-text" id="face-status">Giriş yapmak için kameraya bakın...</p>
-                <button class="btn btn-primary" id="btn-scan" onclick="startFaceRecognition()">Yüzü Tara ve Giriş Yap</button>
+                <div class="form-group" style="margin-bottom: 15px;">
+                <input type="number" id="elderly-login-age" class="form-control" placeholder="Yaşınız">
+            </div>
+                <button type="button" class="btn btn-secondary" onclick="loginWithCredentials()" style="background-color: #6c757d; width: 100%;">
+                    Bilgilerimle Giriş Yap
+                </button>
             </div>
         </div>
 
