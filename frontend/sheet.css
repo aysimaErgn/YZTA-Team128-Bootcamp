@@ -1,0 +1,255 @@
+:root {
+    --bg-gradient: linear-gradient(135deg, #F0F4F8 0%, #E2E8F0 100%);
+    --card-bg: #FFFFFF;
+    --brand-color: #3B82F6;
+    --brand-gradient: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+    --success-color: #10B981;
+    --text-main: #1E293B;
+    --text-muted: #64748B;
+    --border-color: #CBD5E1;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+    background: var(--bg-gradient);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.auth-container {
+    background: var(--card-bg);
+    width: 100%;
+    max-width: 480px;
+    border-radius: 24px;
+    padding: 35px;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.auth-container.register-mode {
+    max-width: 900px; /* Kayıt formu yan yana iki sütun sığsın diye geniş */
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.auth-header h1 {
+    font-size: 32px;
+    font-weight: 800;
+    background: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+}
+
+.auth-header p {
+    font-size: 16px;
+    color: var(--text-muted);
+}
+
+/* Tablar */
+.tab-container {
+    display: flex;
+    background: #F1F5F9;
+    padding: 6px;
+    border-radius: 14px;
+    margin-bottom: 25px;
+}
+
+.tab-btn {
+    flex: 1;
+    border: none;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+    background: #FFFFFF;
+    color: var(--brand-color);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Form Elemanları */
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+@media (max-width: 768px) {
+    .form-grid { grid-template-columns: 1fr; }
+}
+
+.form-section {
+    background: #F8FAFC;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid #E2E8F0;
+}
+
+.form-section h3 {
+    margin-bottom: 15px;
+    font-size: 18px;
+    color: #0F172A;
+    border-bottom: 2px solid #E2E8F0;
+    padding-bottom: 8px;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #475569;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    border: 2px solid #E2E8F0;
+    border-radius: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+    border-color: var(--brand-color);
+}
+
+/* Butonlar */
+.btn {
+    padding: 14px 24px;
+    font-size: 16px;
+    font-weight: 700;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.btn-block { width: 100%; }
+
+.btn-primary {
+    background: var(--brand-gradient);
+    color: white;
+    width: 100%;
+}
+
+.btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.btn-neutral {
+    background: #E2E8F0;
+    color: var(--text-main);
+    width: 100%;
+}
+
+/* Yüz Tanıma Canlı Kamera Alanı */
+.camera-stream-container {
+    position: relative;
+    width: 100%;
+    height: 260px;
+    background: #000;
+    border-radius: 20px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    border: 3px solid var(--brand-color);
+}
+
+#webcam {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.face-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 180px;
+    height: 180px;
+    border: 2px dashed #10B981;
+    border-radius: 50%;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
+.scan-line {
+    position: absolute;
+    width: 100%;
+    height: 4px;
+    background: #10B981;
+    top: 0;
+    box-shadow: 0 0 15px #10B981;
+    animation: scan 2s linear infinite;
+}
+
+.status-text {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--brand-color);
+    margin-bottom: 15px;
+}
+
+.face-register-box {
+    text-align: center;
+    padding: 10px;
+    background: #FFFFFF;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 25px;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.auth-footer a {
+    color: var(--brand-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+@keyframes scan {
+    0% { top: 0%; }
+    50% { top: 100%; }
+    100% { top: 0%; }
+}

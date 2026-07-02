@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from groq import Groq
@@ -6,8 +6,13 @@ import os
 from dotenv import load_dotenv
 import io
 from datetime import datetime
+import numpy as np
+import cv2
+from deepface import DeepFace  # dlib hatasını engelleyen güncel kütüphane
+import json
+import base64
 
-# --- SENİN YAZDIĞIN VERİTABANI DOSYASINI İÇERİ AKTARIYORUZ ---
+# --- VERİTABANI FONKSİYONLARI ---
 from database import save_message, create_client, Client, save_checkin, get_checkin_history
 
 app = FastAPI(title="Yanımda Al - Yaşlı Refakatçi API")
@@ -23,48 +28,51 @@ app.add_middleware(
 load_dotenv()
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-
 SUPABASE_URL  = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-class TextChatRequest(BaseModel):
-    conversation_id: str
+# --- PYDANTIC MODELLERİ (DİNAMİK ID DESTEKLİ) ---
+class TextMessageModel(BaseModel):
+    conversation_id: str  # Frontend'den gelecek olan dinamik ID
     message: str
 
-# Pydantic Modelleri
 class CheckinModel(BaseModel):
+    conversation_id: str  # Sağlık durumu kontrolü de bu oturuma bağlanacak
     mood: str
 
 class MedModel(BaseModel):
     med_id: str
 
-# YAZILI SOHBET İÇİN MODEL
-class TextMessageModel(BaseModel):
-    message: str
+class FaceAuthRequest(BaseModel):
+    image_data: str 
 
-# SYSTEM PROMPT (Yapay zekanın bürüneceği ortak kişilik)
+# Yardımcı Fonksiyon: Base64'ü görüntüye çevirir
+def base64_to_image(base64_string):
+    try:
+        if "," in base64_string:
+            base64_string = base64_string.split(",")[1]
+        img_bytes = base64.b64decode(base64_string)
+        img_np = np.frombuffer(img_bytes, dtype=np.uint8)
+        img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
+        rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        return rgb_img
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Fotoğraf verisi işlenemedi.")
+
 SYSTEM_PROMPT = (
     "Sen 'Yanımda Al' projesinde yalnız yaşayan yaşlılara destek olan sevecen, "
-    "sabırlı and neşeli bir dijital refakatçi ajansın. Karşındaki kişi 65 yaş üstü "
+    "sabırlı ve neşeli bir dijital refakatçi ajansın. Karşındaki kişi 65 yaş üstü "
     "Ahmet Amca. Cümlelerin çok uzun olmasın, onun durumunu sor, empati yap ve "
     "onu motive et. Tıbbi teşhis veya tedavi önerisi verme."
 )
 
-# =====================================================================
-# GÜNCEL: Supabase 'conversations' tablosundan aldığın gerçek UUID bağlandı!
-# =====================================================================
-GECERLI_UUID = "890f8eb3-2734-47d8-864a-df1a33f9a161"
-
-
 # ==========================================
-# GÜNCEL: YAZILI SOHBET ENDPOINT
+# 1. YAZILI SOHBET ENDPOINT (DİNAMİK)
 # ==========================================
 @app.post("/api/text-chat")
 async def text_chat(data: TextMessageModel):
     try:
-        # LOG print(f"\n>>>>>> YENİ MESAJ GELDİ: {data.message} <<<<<<\n")
-        
         response = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
@@ -76,38 +84,34 @@ async def text_chat(data: TextMessageModel):
         )
         ai_response = response.choices[0].message.content
         
-        # --- VERİTABANINA KAYIT (YAZILI SOHBET) ---
-        save_message(conversation_id=GECERLI_UUID, role="user", content=data.message)
-        save_message(conversation_id=GECERLI_UUID, role="assistant", content=ai_response)
+        # Gelen dinamik conversation_id ile veritabanına kaydediyoruz
+        save_message(conversation_id=data.conversation_id, role="user", content=data.message)
+        save_message(conversation_id=data.conversation_id, role="assistant", content=ai_response)
         
         return {"ai_response": ai_response}
-        
     except Exception as e:
-        gizli_hata = f"SİSTEM HATASI BULUNDU: {str(e)}"
-        print(gizli_hata)
-        return {"ai_response": gizli_hata}
-
+        return {"ai_response": f"SİSTEM HATASI BULUNDU: {str(e)}"}
 
 # ==========================================
-# SESLİ SOHBET ENDPOINT (SABİT SİMÜLASYON)
+# 2. SESLİ SOHBET ENDPOINT (DİNAMİK)
 # ==========================================
 @app.post("/api/voice-chat")
-async def voice_chat(file: UploadFile = File(...)):
+async def voice_chat(
+    file: UploadFile = File(...),
+    conversation_id: str = Form(...)  # Frontend'den form-data içinde geliyor
+):
     try:
         audio_bytes = await file.read()
-        
         if not audio_bytes or len(audio_bytes) < 100:
-            print(f"[UYARI] Ahmet Amca'dan boş ses dosyası geldi.")
             return {
                 "user_transcription": "Ses algılanamadı.",
                 "text": "Ses algılanamadı.",
-                "ai_response": "Ahmet Amca, sesin geldi ama ahizeye tam üfleyemedin galiba, sesini duyamadım. Tekrar söyler misin?",
-                "response": "Ahmet Amca, sesin geldi ama ahizeye tam üfleyemedin galiba, sesini duyamadım. Tekrar söyler misin?"
+                "ai_response": "Ahmet Amca, sesini tam alamadım. Tekrar söyler misin?",
+                "response": "Ahmet Amca, sesini tam alamadım. Tekrar söyler misin?"
             }
 
         ext = os.path.splitext(file.filename)[1] if file.filename else ".wav"
-        if not ext or ext == ".blob":
-            ext = ".wav" 
+        if not ext or ext == ".blob": ext = ".wav" 
             
         custom_filename = f"audio{ext}"
         audio_file_like = io.BytesIO(audio_bytes)
@@ -120,11 +124,10 @@ async def voice_chat(file: UploadFile = File(...)):
         )
         
         user_text = transcription.text
-        print(f"[SES ANLAŞILDI] Ahmet Amca: {user_text}")
 
         if not user_text or user_text.strip() == "":
             user_text = "Sessizlik"
-            ai_response = "Ahmet Amca, sesin geldi ama ne dediğini tam seçemedim. Tekrar söyler misin canım benim?"
+            ai_response = "Ahmet Amca, ne dediğini tam seçemedim. Tekrar söyler misin canım benim?"
         else:
             response = groq_client.chat.completions.create(
                 model="llama-3.1-8b-instant",
@@ -137,15 +140,13 @@ async def voice_chat(file: UploadFile = File(...)):
             )
             ai_response = response.choices[0].message.content
             
-            # --- VERİTABANINA KAYIT (SESLİ SOHBET) ---
-            save_message(conversation_id=GECERLI_UUID, role="user", content=user_text)
-            save_message(conversation_id=GECERLI_UUID, role="assistant", content=ai_response)
+            # Dinamik oturuma kaydetme
+            save_message(conversation_id=conversation_id, role="user", content=user_text)
+            save_message(conversation_id=conversation_id, role="assistant", content=ai_response)
 
     except Exception as e:
-        gizli_hata = f"[KRİTİK HATA] Ses işlenirken bir sorun oluştu: {str(e)}"
-        print(gizli_hata)
         user_text = "Ses dosyası işlenirken teknik hata oluştu."
-        ai_response = "Ahmet Amca sesini tam alamadım, hattım kesildi galiba. İyi misin, her şey yolunda mı?"
+        ai_response = "Ahmet Amca sesini tam alamadım, iyi misin, her şey yolunda mı?"
     
     return {
         "user_transcription": user_text,
@@ -155,37 +156,34 @@ async def voice_chat(file: UploadFile = File(...)):
         "message": ai_response
     }
 
+# ==========================================
+# 3. SOHBET LİSTESİNİ GETİR (GÜN GÜN AYIRIR)
+# ==========================================
 @app.get("/api/conversations")
 async def get_conversations():
     try:
-        # Bu sefer content yerine created_at bilgisini çekiyoruz
         response = supabase.table("messages").select("conversation_id, created_at").eq("role", "user").order("created_at", desc=True).execute()
-        
         seen = set()
         unique_conversations = []
         for row in response.data:
             c_id = row["conversation_id"]
             if c_id not in seen:
                 seen.add(c_id)
-                
-                # Supabase'den gelen tarihi (2026-07-01T11:53:41...) parçalayıp okunabilir formata getiriyoruz
                 try:
-                    raw_date = row["created_at"].split("T")[0] # "2026-07-01" alır
+                    raw_date = row["created_at"].split("T")[0]
                     date_obj = datetime.strptime(raw_date, "%Y-%m-%d")
-                    formatted_date = date_obj.strftime("%d.%m.%Y") # "01.07.2026" yapar
+                    formatted_date = date_obj.strftime("%d.%m.%Y")
                 except:
                     formatted_date = "Bilinmeyen Tarih"
 
                 unique_conversations.append({
                     "conversation_id": c_id, 
-                    "title": formatted_date # Artık başlık olarak tarih gidiyor
+                    "title": f"Sohbet - {formatted_date}"
                 })
-        
         return unique_conversations
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 2. SEÇİLEN SOHBETİN DETAYINI GETİR
 @app.get("/api/conversations/{conversation_id}")
 async def get_chat_history(conversation_id: str):
     try:
@@ -194,34 +192,68 @@ async def get_chat_history(conversation_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
+# ==========================================
+# 4. GÜNLÜK DURUM (CHECK-IN) ENDPOINTS
+# ==========================================
 @app.post("/api/checkin")
 async def daily_checkin(data: CheckinModel):
     try:
-        print(f"[LOG] Ahmet Amca bugün kendini nasıl hissediyor -> {data.mood}")
-        save_checkin(conversation_id=GECERLI_UUID, mood=data.mood)
+        save_checkin(conversation_id=data.conversation_id, mood=data.mood)
         return {"status": "success"}
     except Exception as e:
-        print(f"[HATA] Check-in kaydedilemedi: {str(e)}")
         raise HTTPException(status_code=500, detail="Check-in kaydedilemedi.")
 
 @app.get("/api/checkin/history")
-async def checkin_history(limit: int = 10):
+async def checkin_history(conversation_id: str, limit: int = 10):
     try:
-        history = get_checkin_history(conversation_id=GECERLI_UUID, limit=limit)
+        history = get_checkin_history(conversation_id=conversation_id, limit=limit)
         return {"history": history}
     except Exception as e:
-        print(f"[HATA] Check-in geçmişi alınamadı: {str(e)}")
         raise HTTPException(status_code=500, detail="Check-in geçmişi alınamadı.")
 
 @app.post("/api/medication")
 async def take_medication(data: MedModel):
-    print(f"[LOG] İlaç alımı onaylandı -> {data.med_id}")
     return {"status": "success"}
 
 @app.post("/api/medication/recognize")
 async def recognize_medication(file: UploadFile = File(...)):
     return {"status": "success", "recognized_med": "Vitamin Takviyesi"}
+
+# ==========================================
+# 5. YÜZ TANIMA SİSTEMİ (DEEPFACE ENTEGRELİ)
+# ==========================================
+@app.post("/api/auth/register-face")
+async def register_face(request: FaceAuthRequest):
+    try:
+        rgb_image = base64_to_image(request.image_data)
+        embeddings_data = DeepFace.represent(img_path=rgb_image, model_name="VGG-Face", enforce_detection=True, detector_backend="opencv")
+        if not embeddings_data or len(embeddings_data) == 0:
+            raise HTTPException(status_code=400, detail="Fotoğrafta yüz tespit edilemedi!")
+            
+        elderly_face_vector = embeddings_data[0]["embedding"]
+        return {"success": True, "message": "Yüz imzası başarıyla çıkarıldı.", "face_vector": elderly_face_vector}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Yüz analizi başarısız oldu.")
+
+@app.post("/api/auth/face-login")
+async def face_login(request: FaceAuthRequest):
+    try:
+        current_rgb_image = base64_to_image(request.image_data)
+        current_embeddings = DeepFace.represent(img_path=current_rgb_image, model_name="VGG-Face", enforce_detection=True, detector_backend="opencv")
+        if not current_embeddings or len(current_embeddings) == 0:
+            raise HTTPException(status_code=400, detail="Yüz algılanamadı.")
+            
+        login_face_encoding = current_embeddings[0]["embedding"]
+        users_response = supabase.table("users").select("id, name, face_vector").not_.is_("face_vector", "null").execute()
+        
+        for user in users_response.data:
+            saved_face_vector = user["face_vector"]
+            distance = DeepFace.verification.CosineDistance.calculate_distance(login_face_encoding, saved_face_vector)
+            if distance <= 0.40:
+                return {"success": True, "message": f"Giriş Başarılı. Hoş geldin {user['name']}", "user_id": user["id"]}
+        raise HTTPException(status_code=401, detail="Yüz tanınamadı!")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Giriş esnasında bir hata oluştu.")
 
 if __name__ == "__main__":
     import uvicorn

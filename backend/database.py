@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from datetime import datetime
 
 # .env dosyasındaki gizli bilgileri yükle
 load_dotenv()
@@ -23,15 +24,29 @@ def add_elder(full_name, phone, city, preferred_language="tr"):
     return response.data
 
 # --- TRELLO GÖREVİ 2: SOHBET GEÇMİŞİ TUTULMASI ---
-def save_message(conversation_id, role, content):
-    """role: 'user' veya 'assistant' olmalı"""
-    data = {
-        "conversation_id": conversation_id,
-        "role": role, 
-        "content": content
-    }
-    response = supabase.table("messages").insert(data).execute()
-    return response.data
+def save_message(conversation_id: str, role: str, content: str):
+    try:
+        # 1. Oturum kontrolü
+        conv_check = supabase.table("conversations").select("id").eq("id", conversation_id).execute()
+        
+        # 2. Eğer oturum yoksa sadece ID ile oluştur (title sütununu zorlamıyoruz)
+        if not conv_check.data:
+            supabase.table("conversations").insert({
+                "id": conversation_id
+            }).execute()
+            print(f"[OTURUM OLUŞTURULDU] {conversation_id} aktif.")
+
+        # 3. Mesajı kaydet
+        supabase.table("messages").insert({
+            "conversation_id": conversation_id,
+            "role": role,
+            "content": content
+        }).execute()
+        
+    except Exception as e:
+        print(f"[VERİTABANI HATASI] Mesaj kaydedilemedi: {str(e)}")
+
+
 
 def get_conversation_history(conversation_id):
     response = supabase.table("messages") \
@@ -42,14 +57,27 @@ def get_conversation_history(conversation_id):
     return response.data
 
 # --- TRELLO GÖREVİ 3: GÜNLÜK DURUM (CHECK-IN) KAYITLARININ TUTULMASI ---
-def save_checkin(conversation_id, mood):
-    """Günlük check-in kaydını 'checkins' tablosuna ekler."""
-    data = {
-        "conversation_id": conversation_id,
-        "mood": mood
-    }
-    response = supabase.table("checkins").insert(data).execute()
-    return response.data
+def save_checkin(conversation_id: str, mood: str):
+    try:
+        # 1. Oturum kontrolü
+        conv_check = supabase.table("conversations").select("id").eq("id", conversation_id).execute()
+        
+        # 2. Eğer oturum yoksa sadece ID ile oluştur
+        if not conv_check.data:
+            supabase.table("conversations").insert({
+                "id": conversation_id
+            }).execute()
+            print(f"[OTURUM OLUŞTURULDU] Check-in için {conversation_id} aktif.")
+
+        # 3. Durumu kaydet
+        supabase.table("checkins").insert({
+            "conversation_id": conversation_id,
+            "mood": mood
+        }).execute()
+        
+    except Exception as e:
+        print(f"[VERİTABANI HATASI] Check-in kaydedilemedi: {str(e)}")
+        raise e
 
 def get_checkin_history(conversation_id, limit=10):
     """Belirli bir kullanıcının geçmiş check-in kayıtlarını en yeniden eskiye doğru getirir."""

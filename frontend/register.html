@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yanımda Al - Kayıt Ol</title>
+    <link rel="stylesheet" href="sheet.css">
+</head>
+<body>
+    <div class="auth-container register-mode">
+        <div class="auth-header">
+            <h1>Aile & Refakatçi Kaydı</h1>
+            <p>Lütfen yaşlı kullanıcı ve aile bilgilerini eksiksiz doldurun</p>
+        </div>
+
+        <form id="register-form" onsubmit="handleRegister(event)">
+            <div class="form-grid">
+                
+                <div class="form-section">
+                    <h3>👵👴 Yaşlı Kullanıcı Bilgileri</h3>
+                    <div class="form-group">
+                        <label for="elderly-name">Adı Soyadı</label>
+                        <input type="text" id="elderly-name" placeholder="Ahmet Yılmaz" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="elderly-age">Yaşı</label>
+                        <input type="number" id="elderly-age" placeholder="75" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Yüz Tanıma Tanımlama</label>
+                        <div class="face-register-box">
+                            <button type="button" class="btn btn-neutral" onclick="openRegisterCamera()">📷 Kamerayı Aç ve Yüzü Kaydet</button>
+                            <span id="reg-camera-status" style="font-size: 14px; color: var(--text-muted); display:block; margin-top:5px;">Kamera henüz tanımlanmadı.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>👨‍👩‍👧‍👦 Aile / Refakatçi Bilgileri</h3>
+                    <div class="form-group">
+                        <label for="family-name">Adı Soyadı</label>
+                        <input type="text" id="family-name" placeholder="Mehmet Yılmaz (Oğlu)" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="family-phone">Telefon Numarası</label>
+                        <input type="tel" id="family-phone" placeholder="5xx xxx xx xx" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="family-password">Giriş Şifresi</label>
+                        <input type="password" id="family-password" placeholder="En az 6 karakter" required>
+                    </div>
+                </div>
+
+            </div>
+
+            <button type="submit" class="btn btn-success btn-block" style="margin-top: 20px;">Kayıt İşlemini Tamamla</button>
+        </form>
+
+        <div class="auth-footer">
+            Zaten üye misiniz? <a href="login.html">Giriş Yap</a>
+        </div>
+    </div>
+
+    <script src="authorization.js"></script>
+</body>
+</html>
