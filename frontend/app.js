@@ -14,6 +14,25 @@ function generateUUID() {
 // Uygulama ilk açıldığında taze ve benzersiz bir konuşma ID'si tanımlıyoruz
 let activeChatId = generateUUID();
 
+// Check-in takibi (kalıcı) için sohbetten BAĞIMSIZ bir kimlik lazım.
+// activeChatId her yenilemede değiştiği için "bugün check-in yapıldı mı" kontrolü onunla yapılamaz.
+// Bunun için login.html'de giriş yapan kullanıcının GERÇEK user_id'sini kullanıyoruz,
+// böylece farklı hesaplarla girişte check-in durumu birbirine karışmaz.
+// Giriş yapan kullanıcının gerçek adı (login.html'de kaydedilir).
+// Login akışı hiç kullanılmadan test amaçlı doğrudan index.html açıldıysa varsayılan bir isim gösterilir.
+let userDisplayName = localStorage.getItem('user_name') || 'Ahmet Amca';
+
+let elderProfileId = localStorage.getItem('user_id');
+if (!elderProfileId) {
+    // Login akışı hiç kullanılmadan (test amaçlı) doğrudan index.html açıldıysa
+    // yine de check-in özelliği çalışsın diye geçici bir kimlik üretip saklıyoruz.
+    elderProfileId = localStorage.getItem('elder_profile_id_fallback');
+    if (!elderProfileId) {
+        elderProfileId = generateUUID();
+        localStorage.setItem('elder_profile_id_fallback', elderProfileId);
+    }
+}
+
 const voiceBtn = document.getElementById('voiceBtn');
 const btnText = document.getElementById('btnText');
 const chatBox = document.getElementById('chatBox');
@@ -34,14 +53,72 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Sayfa her açıldığında ekran dünkü sohbetle dolmayacak, bugünün temiz oturumuyla başlayacak.
     chatBox.innerHTML = `
         <div class="chat-msg msg-ai">
-            Merhaba Ahmet Amca! Sesini duymak çok güzel, bugün nasılsın? 
+            Merhaba ${userDisplayName}! Sesini duymak çok güzel, bugün nasılsın? 
             Konuşmak için aşağıdaki düğmeye basabilirsin.
         </div>
     `;
     
     // Sol menüdeki "active-chat" (seçili) görsel vurgusunu temizle
     document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active-chat'));
+
+    // "Durumum" sekmesindeki karşılama metnini gerçek kullanıcı adıyla doldur
+    const checkinGreetingEl = document.getElementById('checkinGreeting');
+    if (checkinGreetingEl) {
+        checkinGreetingEl.textContent = `${userDisplayName}, bugün kendini nasıl hissediyorsun?`;
+    }
+
+    // 3. Bugün check-in yapılmamışsa hatırlatma pop-up'ını göster
+    checkAndShowCheckinReminder();
 });
+
+// Sayfa açılışında bugün check-in yapılıp yapılmadığını kontrol edip gerekirse pop-up gösterir.
+// Pop-up, check-in yapılmadığı sürece günde en fazla 3 kez gösterilir, sonrasında sessiz kalır.
+const MAX_DAILY_REMINDERS = 3;
+
+async function checkAndShowCheckinReminder() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/checkin/status?conversation_id=${elderProfileId}`);
+        const data = await response.json();
+
+        if (data.checked_in_today) {
+            return; // Check-in zaten yapılmış, hiç gösterme
+        }
+
+        const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const dateKey = `checkin_reminder_date_${elderProfileId}`;
+        const countKey = `checkin_reminder_count_${elderProfileId}`;
+        const storedDate = localStorage.getItem(dateKey);
+        let shownCount = parseInt(localStorage.getItem(countKey) || '0', 10);
+
+        // Gün değiştiyse sayaç sıfırlanır
+        if (storedDate !== todayStr) {
+            shownCount = 0;
+            localStorage.setItem(dateKey, todayStr);
+        }
+
+        if (shownCount >= MAX_DAILY_REMINDERS) {
+            return; // Bugün için gösterim hakkı bitti, artık rahatsız etme
+        }
+
+        const modal = document.getElementById('checkinReminderModal');
+        if (modal) modal.style.display = 'flex';
+
+        localStorage.setItem(countKey, String(shownCount + 1));
+    } catch (error) {
+        console.error("Check-in hatırlatma kontrolü başarısız:", error);
+    }
+}
+
+// "Şimdi Bildir" butonu: pop-up'ı kapatıp doğrudan Durumum sekmesine götürür
+function goToCheckinFromReminder() {
+    document.getElementById('checkinReminderModal').style.display = 'none';
+    switchPage('durum');
+}
+
+// "Daha Sonra" butonu: pop-up'ı sadece kapatır, kullanıcı istediği zaman Durumum sekmesinden bildirebilir
+function dismissCheckinReminder() {
+    document.getElementById('checkinReminderModal').style.display = 'none';
+}
 
 function switchPage(pageId) {
     document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
@@ -57,6 +134,35 @@ function switchPage(pageId) {
 
     if (pageId === 'durum') {
         loadCheckinHistory();
+        loadCheckinStatus();
+    }
+}
+
+// Check-in eksikliği tespiti: bugün check-in yapılmış mı, banner ile göster
+async function loadCheckinStatus() {
+    const banner = document.getElementById('checkinStatusBanner');
+    if (!banner) return;
+    try {
+        const response = await fetch(`${API_BASE_URL}/checkin/status?conversation_id=${elderProfileId}`);
+        const data = await response.json();
+
+        if (data.checked_in_today) {
+            const time = new Date(data.last_checkin.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            banner.innerHTML = `
+                <div style="background:#ECFDF5; border:1px solid #A7F3D0; color:#065F46; border-radius:10px; padding:12px 16px; font-weight:600; text-align:center;">
+                    ✅ Bugün check-in yapıldı (saat ${time}, durum: ${data.last_checkin.mood})
+                </div>
+            `;
+        } else {
+            banner.innerHTML = `
+                <div style="background:#FFFBEB; border:1px solid #FDE68A; color:#92400E; border-radius:10px; padding:12px 16px; font-weight:600; text-align:center;">
+                    ⚠️ Bugün henüz check-in yapılmadı. Lütfen durumunu bildir.
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error(error);
+        banner.innerHTML = "";
     }
 }
 
@@ -65,7 +171,7 @@ async function loadCheckinHistory() {
     const historyBox = document.getElementById('checkinHistory');
     try {
         // Geçmişi çekerken hangi sohbet oturumuna bağlı olduğunu query parametresi olarak gönderiyoruz
-        const response = await fetch(`${API_BASE_URL}/checkin/history?conversation_id=${activeChatId}`);
+        const response = await fetch(`${API_BASE_URL}/checkin/history?conversation_id=${elderProfileId}`);
         const data = await response.json();
         const history = data.history || [];
 
@@ -126,7 +232,7 @@ async function loadSpecificChatFromServer(id) {
         const messages = await response.json();
 
         if (!messages || messages.length === 0) {
-            chatBox.innerHTML = `<div class="chat-msg msg-ai">Bu sohbet boş görünüyor Ahmet Amca.</div>`;
+            chatBox.innerHTML = `<div class="chat-msg msg-ai">Bu sohbet boş görünüyor ${userDisplayName}.</div>`;
             return;
         }
 
@@ -172,7 +278,7 @@ async function sendTextMessage() {
         await loadConversationsFromSupabase();
     } catch (error) {
         console.error(error);
-        appendMessageToUI("Bağlantı hatası oluştu Ahmet Amca.", "ai");
+        appendMessageToUI(`Bağlantı hatası oluştu ${userDisplayName}.`, "ai");
     }
 }
 
@@ -253,7 +359,7 @@ async function completeCheckin(mood) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
-                conversation_id: activeChatId, // Check-in durumunu aktif sohbete bağla
+                conversation_id: elderProfileId, // Check-in durumunu kalıcı kullanıcı kimliğine bağla
                 mood: mood 
             })
         });
@@ -264,6 +370,7 @@ async function completeCheckin(mood) {
         `;
         appendMessageToUI(`Günlük sağlık kontrolü yapıldı: ${mood}`, "user");
         loadCheckinHistory();
+        loadCheckinStatus();
     } catch (error) { alert("Bağlantı hatası."); }
 }
 

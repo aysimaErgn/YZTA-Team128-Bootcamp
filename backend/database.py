@@ -88,3 +88,24 @@ def get_checkin_history(conversation_id, limit=10):
         .limit(limit) \
         .execute()
     return response.data
+
+# --- TRELLO GÖREVİ: CHECK-IN EKSİKLİĞİ TESPİTİ ---
+def get_today_checkin_status(conversation_id):
+    """
+    Bugün (yerel gün başlangıcından şu ana kadar) bu oturum için
+    check-in yapılıp yapılmadığını kontrol eder.
+    Yapılmışsa en son kaydı, yapılmamışsa None döner.
+    """
+    today_start = datetime.now().strftime("%Y-%m-%dT00:00:00")
+
+    response = supabase.table("checkins") \
+        .select("*") \
+        .eq("conversation_id", conversation_id) \
+        .gte("created_at", today_start) \
+        .order("created_at", desc=True) \
+        .limit(1) \
+        .execute()
+
+    if response.data:
+        return response.data[0]
+    return None

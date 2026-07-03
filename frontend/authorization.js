@@ -92,10 +92,11 @@ async function startFaceRecognition() {
             }
             stopWebcam();
             localStorage.setItem('user_id', data.user_id);
+            localStorage.setItem('user_name', data.name);
             setTimeout(() => { window.location.href = "index.html"; }, 1200);
         } else {
             if (statusText) {
-                statusText.innerText = data.detail || "Yüz eşleşmedi Ahmet Amca. Lütfen tekrar deneyin.";
+                statusText.innerText = data.detail || "Yüz eşleşmedi. Lütfen tekrar deneyin.";
                 statusText.style.color = "red";
             }
         }
@@ -114,7 +115,7 @@ async function loginWithCredentials() {
     const statusText = document.getElementById('face-status');
 
     if (!nameInput || !ageInput) {
-        alert("Lütfen adınızı, soyadınızı ve yaşınızı eksiksiz girin Ahmet Amca!");
+        alert("Lütfen adınızı, soyadınızı ve yaşınızı eksiksiz girin!");
         return;
     }
 
@@ -144,6 +145,7 @@ async function loginWithCredentials() {
             stopWebcam(); // Kamerayı kapat
             
             localStorage.setItem('user_id', data.user_id);
+            localStorage.setItem('user_name', data.name);
             alert(`Giriş Başarılı! Ana sayfaya yönlendiriliyorsunuz.`);
             window.location.href = "index.html";
         } else {

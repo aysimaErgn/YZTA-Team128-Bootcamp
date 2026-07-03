@@ -13,7 +13,7 @@ import json
 import base64
 
 # --- VERİTABANI FONKSİYONLARI ---
-from database import save_message, create_client, Client, save_checkin, get_checkin_history
+from database import save_message, create_client, Client, save_checkin, get_checkin_history, get_today_checkin_status
 
 app = FastAPI(title="Yanımda Al - Yaşlı Refakatçi API")
 
@@ -211,6 +211,22 @@ async def checkin_history(conversation_id: str, limit: int = 10):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Check-in geçmişi alınamadı.")
 
+@app.get("/api/checkin/status")
+async def checkin_status(conversation_id: str):
+    """
+    Check-in eksikliği tespiti: Bugün bu kullanıcı için check-in yapılmış mı?
+    Aile tarafı ve Durumum ekranı bu bilgiyi kullanarak uyarı gösterebilir.
+    """
+    try:
+        today_checkin = get_today_checkin_status(conversation_id=conversation_id)
+        return {
+            "checked_in_today": today_checkin is not None,
+            "last_checkin": today_checkin
+        }
+    except Exception as e:
+        print("!!! CHECKIN-STATUS HATASI:", str(e))
+        raise HTTPException(status_code=500, detail="Check-in durumu alınamadı.")
+
 @app.post("/api/medication")
 async def take_medication(data: MedModel):
     return {"status": "success"}
@@ -255,7 +271,7 @@ async def face_login(request: FaceAuthRequest):
             distance = DeepFace.verification.find_cosine_distance(login_face_encoding, saved_face_vector)
             print(f"-> {user['name']} için ölçülen mesafe: {distance}")
             if distance <= 0.68:
-                return {"success": True, "message": f"Giriş Başarılı. Hoş geldin {user['name']}", "user_id": user["id"]}
+                return {"success": True, "message": f"Giriş Başarılı. Hoş geldin {user['name']}", "user_id": user["id"], "name": user["name"]}
         raise HTTPException(status_code=401, detail="Yüz tanınamadı!")
     except Exception as e:
         print("!!! FACE-LOGIN HATASI:", str(e))

@@ -35,7 +35,7 @@
                 <div class="page-title">💬 Refakatçi Sohbeti</div>
                 <div class="chat-container" id="chatScroll">
                     <div class="chat-box" id="chatBox">
-                        <div class="chat-msg msg-ai">Merhaba Ahmet Amca, sesini duymak veya senden haber almak çok güzel. Bugün nasılsın?</div>
+                        <div class="chat-msg msg-ai">Merhaba, sesini duymak veya senden haber almak çok güzel. Bugün nasılsın?</div>
                     </div>
                 </div>
 
@@ -74,8 +74,9 @@
 
             <div class="page" id="page-durum">
                 <div class="page-title">☀️ Günlük Sağlık Kontrolü</div>
+                <div id="checkinStatusBanner" style="margin-bottom: 15px;"></div>
                 <div id="checkinCard" style="text-align: center; display: flex; flex-direction: column; gap: 20px; justify-content: center;">
-                    <p style="font-weight: 600; font-size: 26px;">Ahmet Amca, bugün kendini nasıl hissediyorsun?</p>
+                    <p id="checkinGreeting" style="font-weight: 600; font-size: 26px;">Ahmet Amca, bugün kendini nasıl hissediyorsun?</p>
                     <button class="btn btn-success" onclick="completeCheckin('Harika!')">😊 Çok İyiyim</button>
                     <button class="btn btn-neutral" style="background: #FFFBEB; color: #B45309; border-color: #FDE68A;" onclick="completeCheckin('Biraz halsizim')">😐 Biraz Halsizim</button>
                 </div>
@@ -89,6 +90,17 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Günlük check-in hatırlatma pop-up'ı -->
+    <div id="checkinReminderModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; padding:30px; max-width:340px; width:90%; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+            <div style="font-size:48px; margin-bottom:10px;">☀️</div>
+            <h2 style="margin:0 0 10px 0; font-size:22px; color:#1F2937;">Lütfen Durumunuzu Güncelleyin</h2>
+            <p style="color:#6B7280; font-size:16px; margin-bottom:22px;">Bugün henüz günlük sağlık kontrolünü yapmadınız. Kendinizi nasıl hissettiğinizi bize bildirir misiniz?</p>
+            <button class="btn btn-success" style="width:100%; margin-bottom:10px;" onclick="goToCheckinFromReminder()">Şimdi Bildir</button>
+            <button class="btn btn-neutral" style="width:100%;" onclick="dismissCheckinReminder()">Daha Sonra</button>
         </div>
     </div>
 
