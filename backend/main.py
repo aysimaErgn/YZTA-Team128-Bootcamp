@@ -226,20 +226,22 @@ async def recognize_medication(file: UploadFile = File(...)):
 async def register_face(request: FaceAuthRequest):
     try:
         rgb_image = base64_to_image(request.image_data)
-        embeddings_data = DeepFace.represent(img_path=rgb_image, model_name="VGG-Face", enforce_detection=True, detector_backend="opencv")
+        embeddings_data = DeepFace.represent(img_path=rgb_image, model_name="VGG-Face", enforce_detection=False, detector_backend="skip")
         if not embeddings_data or len(embeddings_data) == 0:
             raise HTTPException(status_code=400, detail="Fotoğrafta yüz tespit edilemedi!")
             
         elderly_face_vector = embeddings_data[0]["embedding"]
         return {"success": True, "message": "Yüz imzası başarıyla çıkarıldı.", "face_vector": elderly_face_vector}
     except Exception as e:
+        print("!!! REGISTER-FACE HATASI:", str(e))
+        if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=400, detail="Yüz analizi başarısız oldu.")
 
 @app.post("/api/auth/face-login")
 async def face_login(request: FaceAuthRequest):
     try:
         current_rgb_image = base64_to_image(request.image_data)
-        current_embeddings = DeepFace.represent(img_path=current_rgb_image, model_name="VGG-Face", enforce_detection=True, detector_backend="opencv")
+        current_embeddings = DeepFace.represent(img_path=current_rgb_image, model_name="VGG-Face", enforce_detection=False, detector_backend="skip")
         if not current_embeddings or len(current_embeddings) == 0:
             raise HTTPException(status_code=400, detail="Yüz algılanamadı.")
             
@@ -248,11 +250,15 @@ async def face_login(request: FaceAuthRequest):
         
         for user in users_response.data:
             saved_face_vector = user["face_vector"]
-            distance = DeepFace.verification.CosineDistance.calculate_distance(login_face_encoding, saved_face_vector)
-            if distance <= 0.40:
+            if not saved_face_vector or len(saved_face_vector) != len(login_face_encoding):
+                continue
+            distance = DeepFace.verification.find_cosine_distance(login_face_encoding, saved_face_vector)
+            print(f"-> {user['name']} için ölçülen mesafe: {distance}")
+            if distance <= 0.68:
                 return {"success": True, "message": f"Giriş Başarılı. Hoş geldin {user['name']}", "user_id": user["id"]}
         raise HTTPException(status_code=401, detail="Yüz tanınamadı!")
     except Exception as e:
+        print("!!! FACE-LOGIN HATASI:", str(e))
         raise HTTPException(status_code=400, detail="Giriş esnasında bir hata oluştu.")
 
 
@@ -307,6 +313,46 @@ async def register_user_and_family(data: FullRegisterModel):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Veritabanı kayıt hatası: {str(e)}")
 
+
+# ==========================================
+# 7. YAŞLI İÇİN AD+YAŞ İLE GİRİŞ (B PLANI)
+# ==========================================
+class CredentialsAuthRequest(BaseModel):
+    name: str
+    age: int
+
+@app.post("/api/auth/credentials-login")
+async def credentials_login(request: CredentialsAuthRequest):
+    try:
+        response = supabase.table("users").select("id", "name", "age").execute()
+        user_data = response.data
+
+        if not user_data:
+            raise HTTPException(status_code=401, detail="Sistemde kayıtlı hiçbir kullanıcı yok.")
+
+        matched_user = None
+        for user in user_data:
+            db_name = str(user.get("name")).strip().lower().replace("I", "ı").replace("İ", "i")
+            input_name = str(request.name).strip().lower().replace("I", "ı").replace("İ", "i")
+
+            if db_name == input_name and int(user.get("age")) == int(request.age):
+                matched_user = user
+                break
+
+        if matched_user:
+            return {
+                "success": True,
+                "message": f"Giriş Başarılı. Hoş geldin {matched_user['name']}",
+                "user_id": matched_user["id"],
+                "name": matched_user["name"]
+            }
+        else:
+            raise HTTPException(status_code=401, detail="Girdiğiniz ad veya yaş hatalı.")
+
+    except Exception as e:
+        print("!!! CREDENTIALS-LOGIN HATASI:", str(e))
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=400, detail=f"Giriş esnasında hata: {str(e)}")
 
 
 if __name__ == "__main__":

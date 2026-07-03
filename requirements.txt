@@ -5,3 +5,7 @@ groq==0.31.0
 python-dotenv==1.1.1
 pydantic
 supabase
+deepface
+opencv-python
+numpy
+tf-keras
