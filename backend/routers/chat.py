@@ -21,6 +21,12 @@ class TextMessageModel(BaseModel):
     conversation_id: str  # Artık zorunlu ve dinamik
     message: str
 
+class SummaryRequestModel(BaseModel):
+    conversation_id: str
+
+
+
+
 @router.post("/api/text-chat")
 async def text_chat(data: TextMessageModel):
     try:
@@ -145,3 +151,60 @@ async def get_chat_history(conversation_id: str):
         return response.data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+
+
+
+@router.post("/api/family/generate-ai-summary")
+async def generate_ai_summary(data: SummaryRequestModel):
+    try:
+        # 1. Yaşlının bu oturuma ait son 15 mesajını veritabanından çekiyoruz
+        messages_response = supabase.table("messages") \
+            .select("role, content") \
+            .eq("conversation_id", data.conversation_id) \
+            .order("created_at", desc=True) \
+            .limit(15) \
+            .execute()
+        
+        if not messages_response.data:
+            return {
+                "success": True, 
+                "summary": "Bugün henüz dijital refakatçi ile bir sohbet gerçekleşmedi. Yaşlınızın genel durumu stabil görünüyor."
+            }
+        
+        # Mesajları kronolojik sıraya sokuyoruz (en eskiden en yeniye)
+        chat_history = list(reversed(messages_response.data))
+        
+        # 2. LLM için konuşma metnini hazırlıyoruz
+        formatted_history = ""
+        for msg in chat_history:
+            sender = "Ahmet Amca" if msg["role"] == "user" else "Asistan"
+            formatted_history += f"{sender}: {msg['content']}\n"
+
+        # 3. Groq modeline aileyi bilgilendirecek şekilde analiz yaptırıyoruz
+        AI_FAMILY_PROMPT = (
+            "Sen 'Yanımda Al' projesinin arka plandaki analiz zekasısın. "
+            "Sana yalnız yaşayan Ahmet Amca ile dijital refakatçi asistan arasındaki son sohbet geçmişi verilecek. "
+            "Bu konuşmaları analiz ederek Ahmet Amca'nın ailesine/refakatçisine ulaştırılacak kısa, "
+            "samimi ama bilgilendirici bir günlük özet çıkar. Ahmet Amca'nın modunu, sağlığıyla veya "
+            "ilaçlarıyla ilgili verdiği ipuçlarını, eğer varsa bir sıkıntısını veya talebini mutlaka belirt. "
+            "Tıbbi kararlar verme, doğrudan durumu özetle. Maksimum 3-4 cümle olsun."
+        )
+
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": AI_FAMILY_PROMPT},
+                {"role": "user", "content": f"Analiz edilecek sohbet geçmişi:\n{formatted_history}"}
+            ],
+            max_tokens=200,
+            temperature=0.5
+        )
+        
+        ai_summary = response.choices[0].message.content.strip()
+        return {"success": True, "summary": ai_summary}
+
+    except Exception as e:
+        print(f"[AI ÖZET HATASI]: {str(e)}")
+        raise HTTPException(status_code=500, detail="Yapay zeka özeti şu an üretilemedi.")

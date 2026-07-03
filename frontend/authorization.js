@@ -162,7 +162,7 @@ async function loginWithCredentials() {
 }
 
 // =====================================================================
-// 2. AİLE / REFAKATÇİ GİRİŞ FONKSİYONU
+// 2. AİLE / REFAKATÇİ GİRİŞ FONKSİYONU (GÜNCELLENMİŞ)
 // =====================================================================
 async function handleFamilyLogin(event) {
     event.preventDefault();
@@ -178,9 +178,17 @@ async function handleFamilyLogin(event) {
         
         const data = await response.json();
         
-        if (response.ok) {
+        if (response.ok && data.success) {
             alert("Giriş Başarılı!");
-            window.location.href = "index.html";
+            
+            // Aile ve takibindeki yaşlı bilgilerini yerel hafızaya kaydediyoruz
+            localStorage.setItem('user_role', 'family');
+            localStorage.setItem('family_name', data.family_name);
+            localStorage.setItem('elderly_id', data.elderly_id); // Hangi yaşlıya bağlı olduğunu bilmek için
+            localStorage.setItem('elderly_name', data.elderly_name);
+
+            // Aileye özel tasarlayacağımız dashboard sayfasına yönlendiriyoruz
+            window.location.href = "family-dashboard.html";
         } else {
             alert(data.detail || "Hatalı telefon numarası veya şifre!");
         }

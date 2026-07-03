@@ -1,0 +1,184 @@
+/* =====================================================================
+   YANIMDA AL - REFAKATÇİ PANELİ (DASHBOARD) STİLLERİ
+   ===================================================================== */
+
+.dashboard-layout {
+    display: table;
+    width: 100%;
+    min-height: 100vh;
+    table-layout: fixed;
+    background-color: #F8FAFC; /* Projenin açık gri arka plan tonu */
+}
+
+/* Sol Menü (Sidebar) */
+.sidebar {
+    display: table-cell;
+    width: 260px;
+    background: #1E293B; /* Koyu slate tonu */
+    color: #FFFFFF;
+    padding: 24px;
+    vertical-align: top;
+}
+
+.sidebar h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 5px;
+    text-align: center;
+    color: var(--brand-color);
+}
+
+.sidebar-menu {
+    list-style: none;
+    padding: 0;
+    margin-top: 30px;
+}
+
+.sidebar-menu li {
+    padding: 14px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-bottom: 8px;
+    color: #94A3B8;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.sidebar-menu li:hover, 
+.sidebar-menu li.active {
+    background: #334155;
+    color: #FFFFFF;
+}
+
+.sidebar-menu li.active {
+    border-left: 4px solid var(--brand-color);
+    border-radius: 4px 12px 12px 4px;
+}
+
+.sidebar-menu i {
+    margin-right: 12px;
+    width: 20px;
+    text-align: center;
+}
+
+/* Sağ İçerik Alanı */
+.main-content {
+    display: table-cell;
+    padding: 40px;
+    vertical-align: top;
+}
+
+.header-bar {
+    display: block;
+    background: var(--card-bg);
+    padding: 20px 24px;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    margin-bottom: 32px;
+}
+
+.header-title-container {
+    float: left;
+}
+
+.header-status-container {
+    float: right;
+    margin-top: 4px;
+}
+
+/* Grid Kart Yapısı (Flex/Grid kısıtlamalarına karşı Table-Cell yapısı) */
+.grid-stats {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+    border-spacing: 20px 0;
+    margin-left: -20px;
+    margin-right: -20px;
+    margin-bottom: 32px;
+}
+
+.stat-card-wrapper {
+    display: table-cell;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #E2E8F0;
+}
+
+.stat-icon {
+    float: left;
+    font-size: 32px;
+    margin-right: 16px;
+    margin-top: 2px;
+}
+
+.stat-info {
+    overflow: hidden;
+}
+
+/* Durum Rozetleri */
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.status-good {
+    background: #DCFCE7;
+    color: #166534;
+}
+
+.status-warn {
+    background: #FEF9C3;
+    color: #854D0E;
+}
+
+/* Panel Panoları */
+.panel-section {
+    background: var(--card-bg);
+    padding: 32px;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #E2E8F0;
+    margin-bottom: 24px;
+}
+
+/* Geçmiş Tablosu */
+.table-history {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 20px;
+}
+
+.table-history th, 
+.table-history td {
+    padding: 16px;
+    text-align: left;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.table-history th {
+    background-color: #F8FAFC;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.table-history td {
+    color: var(--text-main);
+    font-size: 15px;
+}
+
+/* Temizleme Sınıfı (Float kullandığımız için taşmaları önler) */
+.clearfix::after {
+    content: "";
+    clear: both;
+    display: table;
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yanımda Al - Refakatçi Paneli</title>
+    <link rel="stylesheet" href="sheet.css">
+    <link rel="stylesheet" href="family-dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="dashboard-layout">
+        <div class="sidebar">
+            <h2>Yanımda Al</h2>
+            <p style="text-align: center; font-size: 14px; color: #94A3B8;" id="welcome-family">Yükleniyor...</p>
+            <hr style="border: 0; border-top: 1px solid #334155; margin: 20px 0;">
+            <ul class="sidebar-menu">
+                <li class="active" onclick="switchDashboardTab('summary')"><i class="fas fa-chart-pie"></i> Mevcut Durum</li>
+                <li onclick="switchDashboardTab('history')"><i class="fas fa-history"></i> Geçmiş Durumlar</li>
+                <li onclick="switchDashboardTab('settings')"><i class="fas fa-cog"></i> Ayarlar</li>
+                <li onclick="handleLogout()" style="margin-top: 60px; color: #EF4444;"><i class="fas fa-sign-out-alt"></i> Çıkış Yap</li>
+            </ul>
+        </div>
+
+        <div class="main-content">
+            <div class="header-bar clearfix">
+                <div class="header-title-container">
+                    <h1 style="font-size: 24px; color: var(--text-main); font-weight: 700;" id="elderly-title">Takip Edilen: ...</h1>
+                </div>
+                <div class="header-status-container">
+                    <span class="status-badge status-good" id="live-connection">
+                        <i class="fas fa-circle" style="font-size: 8px; color: #22C55E; margin-right: 5px;"></i> Çevrimiçi
+                    </span>
+                </div>
+            </div>
+
+            <div id="sec-summary" class="dashboard-section">
+                <div class="grid-stats">
+                    <div class="stat-card-wrapper">
+                        <div class="stat-card clearfix">
+                            <div class="stat-icon" style="color: #EF4444;"><i class="fas fa-heartbeat"></i></div>
+                            <div class="stat-info">
+                                <p style="color: var(--text-muted); margin: 0; font-size: 14px;">Son Durum</p>
+                                <h3 style="margin: 4px 0; color: var(--text-main);" id="health-status">Normal</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card-wrapper">
+                        <div class="stat-card clearfix">
+                            <div class="stat-icon" style="color: #10B981;"><i class="fas fa-pills"></i></div>
+                            <div class="stat-info">
+                                <p style="color: var(--text-muted); margin: 0; font-size: 14px;">İlaç Uyumu</p>
+                                <h3 style="margin: 4px 0; color: var(--text-main);" id="pill-status">%100 Alındı</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card-wrapper">
+                        <div class="stat-card clearfix">
+                            <div class="stat-icon" style="color: #F59E0B;"><i class="fas fa-walking"></i></div>
+                            <div class="stat-info">
+                                <p style="color: var(--text-muted); margin: 0; font-size: 14px;">Günlük Aktivite</p>
+                                <h3 style="margin: 4px 0; color: var(--text-main);" id="activity-status">Hareketsiz</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3 style="color: var(--text-main); font-weight: 600;"><i class="fas fa-bell" style="color: #F59E0B; margin-right: 8px;"></i> Yapay Zeka Günlük Özeti</h3>
+                    <p style="line-height: 1.7; color: var(--text-main); margin-top: 15px; font-size: 15px;" id="ai-summary">
+                        Bugün Ahmet Amca ilaçlarını zamanında aldı. Öğleden sonra odada normalden biraz daha uzun süre hareketsiz kaldı ancak şu an genel durumu iyi görünüyor.
+                    </p>
+                </div>
+            </div>
+
+            <div id="sec-history" class="dashboard-section" style="display: none;">
+                <div class="panel-section">
+                    <h3 style="color: var(--text-main); font-weight: 600;"><i class="fas fa-calendar-alt" style="margin-right: 8px; color: var(--brand-color);"></i> Geçmiş Loglar ve Olay Durumları</h3>
+                    <p style="color: var(--text-muted); margin-top: 5px; font-size: 14px;">Yaşlınızın gün içindeki tüm hareket ve tetiklenme geçmişi:</p>
+                    
+                    <table class="table-history">
+                        <thead>
+                            <tr>
+                                <th>Tarih / Saat</th>
+                                <th>Olay / Kategori</th>
+                                <th>Durum</th>
+                                <th>Açıklama</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <tr>
+                                <td>03.07.2026 14:30</td>
+                                <td>İlaç Hatırlatıcı</td>
+                                <td><span class="status-badge status-good">Başarılı</span></td>
+                                <td>Tansiyon ilacı zamanında onaylandı.</td>
+                            </tr>
+                            <tr>
+                                <td>03.07.2026 11:15</td>
+                                <td>Hareketsizlik Uyarısı</td>
+                                <td><span class="status-badge status-warn">İnceleme</span></td>
+                                <td>Yatak odasında 2 saat boyunca hareket tespit edilmedi.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="sec-settings" class="dashboard-section" style="display: none;">
+                <div class="panel-section">
+                    <h3 style="color: var(--text-main); font-weight: 600;"><i class="fas fa-sliders-h" style="margin-right: 8px; color: var(--brand-color);"></i> Refakatçi Ayarları</h3>
+                    <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 14px;">Bildirim ve eşleşme ayarlarını buradan yönetebilirsiniz.</p>
+                    <button class="btn btn-primary" style="max-width: 220px; padding: 12px 20px; border-radius: 12px;">SMS Bildirimlerini Aç</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
