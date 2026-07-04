@@ -33,6 +33,11 @@ if (!elderProfileId) {
     }
 }
 
+// Sohbet mesajlarını 'users' tablosuna bağlamak için SADECE gerçek login'den gelen kimlik kullanılır.
+// (elderProfileId bazen rastgele bir "yedek" kimlik olabilir; onu messages.user_id olarak göndermek
+// veritabanında foreign key hatasına yol açar çünkü users tablosunda öyle bir kayıt yoktur.)
+const realUserId = localStorage.getItem('user_id') || null;
+
 const voiceBtn = document.getElementById('voiceBtn');
 const btnText = document.getElementById('btnText');
 const chatBox = document.getElementById('chatBox');
@@ -268,7 +273,9 @@ async function sendTextMessage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 conversation_id: activeChatId, // Backend'in beklediği dinamik ID gidiyor
-                message: text 
+                message: text,
+                user_id: realUserId,           // Mesajı gerçek kayıtlı kullanıcıya bağlar (giriş yoksa null)
+                user_name: userDisplayName    // AI'ın doğru isimle hitap edebilmesi için
             })
         });
         const data = await response.json();
@@ -322,6 +329,8 @@ async function toggleVoice() {
                 const formData = new FormData();
                 formData.append("file", audioBlob, "audio.webm");
                 formData.append("conversation_id", activeChatId); // Sesi de aktif sohbete bağlıyoruz
+                if (realUserId) formData.append("user_id", realUserId); // Mesajı gerçek kayıtlı kullanıcıya bağlar
+                formData.append("user_name", userDisplayName);    // AI'ın doğru isimle hitap edebilmesi için
 
                 try {
                     const response = await fetch(`${API_BASE_URL}/voice-chat`, { method: "POST", body: formData });

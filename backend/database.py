@@ -24,7 +24,7 @@ def add_elder(full_name, phone, city, preferred_language="tr"):
     return response.data
 
 # --- TRELLO GÖREVİ 2: SOHBET GEÇMİŞİ TUTULMASI ---
-def save_message(conversation_id: str, role: str, content: str):
+def save_message(conversation_id: str, role: str, content: str, user_id: str = None):
     try:
         # 1. Oturum kontrolü
         conv_check = supabase.table("conversations").select("id").eq("id", conversation_id).execute()
@@ -36,12 +36,16 @@ def save_message(conversation_id: str, role: str, content: str):
             }).execute()
             print(f"[OTURUM OLUŞTURULDU] {conversation_id} aktif.")
 
-        # 3. Mesajı kaydet
-        supabase.table("messages").insert({
+        # 3. Mesajı kaydet (user_id varsa, mesajı gerçek kayıtlı kullanıcıya bağlıyoruz)
+        message_payload = {
             "conversation_id": conversation_id,
             "role": role,
             "content": content
-        }).execute()
+        }
+        if user_id:
+            message_payload["user_id"] = user_id
+
+        supabase.table("messages").insert(message_payload).execute()
         
     except Exception as e:
         print(f"[VERİTABANI HATASI] Mesaj kaydedilemedi: {str(e)}")

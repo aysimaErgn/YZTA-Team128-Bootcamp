@@ -36,6 +36,8 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 class TextMessageModel(BaseModel):
     conversation_id: str  # Frontend'den gelecek olan dinamik ID
     message: str
+    user_id: str | None = None    # Bu mesajın hangi kayıtlı kullanıcıya ait olduğu
+    user_name: str | None = None  # AI'ın kişiye doğru isimle hitap edebilmesi için
 
 class CheckinModel(BaseModel):
     conversation_id: str  # Sağlık durumu kontrolü de bu oturuma bağlanacak
@@ -60,12 +62,14 @@ def base64_to_image(base64_string):
     except Exception as e:
         raise HTTPException(status_code=400, detail="Fotoğraf verisi işlenemedi.")
 
-SYSTEM_PROMPT = (
-    "Sen 'Yanımda Al' projesinde yalnız yaşayan yaşlılara destek olan sevecen, "
-    "sabırlı ve neşeli bir dijital refakatçi ajansın. Karşındaki kişi 65 yaş üstü "
-    "Ahmet Amca. Cümlelerin çok uzun olmasın, onun durumunu sor, empati yap ve "
-    "onu motive et. Tıbbi teşhis veya tedavi önerisi verme."
-)
+def build_system_prompt(user_name: str | None = None):
+    display_name = user_name or "karşındaki kişi"
+    return (
+        "Sen 'Yanımda Al' projesinde yalnız yaşayan yaşlılara destek olan sevecen, "
+        f"sabırlı ve neşeli bir dijital refakatçi ajansın. Karşındaki kişi 65 yaş üstü "
+        f"{display_name}. Cümlelerin çok uzun olmasın, onun durumunu sor, empati yap ve "
+        "onu motive et. Tıbbi teşhis veya tedavi önerisi verme."
+    )
 
 # ==========================================
 # 1. YAZILI SOHBET ENDPOINT (DİNAMİK)
@@ -76,7 +80,7 @@ async def text_chat(data: TextMessageModel):
         response = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": build_system_prompt(data.user_name)},
                 {"role": "user", "content": data.message}
             ],
             max_tokens=150,
@@ -84,9 +88,9 @@ async def text_chat(data: TextMessageModel):
         )
         ai_response = response.choices[0].message.content
         
-        # Gelen dinamik conversation_id ile veritabanına kaydediyoruz
-        save_message(conversation_id=data.conversation_id, role="user", content=data.message)
-        save_message(conversation_id=data.conversation_id, role="assistant", content=ai_response)
+        # Gelen dinamik conversation_id ile veritabanına kaydediyoruz, user_id ile de gerçek kullanıcıya bağlıyoruz
+        save_message(conversation_id=data.conversation_id, role="user", content=data.message, user_id=data.user_id)
+        save_message(conversation_id=data.conversation_id, role="assistant", content=ai_response, user_id=data.user_id)
         
         return {"ai_response": ai_response}
     except Exception as e:
@@ -98,16 +102,19 @@ async def text_chat(data: TextMessageModel):
 @app.post("/api/voice-chat")
 async def voice_chat(
     file: UploadFile = File(...),
-    conversation_id: str = Form(...)  # Frontend'den form-data içinde geliyor
+    conversation_id: str = Form(...),  # Frontend'den form-data içinde geliyor
+    user_id: str = Form(None),
+    user_name: str = Form(None)
 ):
+    display_name = user_name or "canım"
     try:
         audio_bytes = await file.read()
         if not audio_bytes or len(audio_bytes) < 100:
             return {
                 "user_transcription": "Ses algılanamadı.",
                 "text": "Ses algılanamadı.",
-                "ai_response": "Ahmet Amca, sesini tam alamadım. Tekrar söyler misin?",
-                "response": "Ahmet Amca, sesini tam alamadım. Tekrar söyler misin?"
+                "ai_response": f"{display_name}, sesini tam alamadım. Tekrar söyler misin?",
+                "response": f"{display_name}, sesini tam alamadım. Tekrar söyler misin?"
             }
 
         ext = os.path.splitext(file.filename)[1] if file.filename else ".wav"
@@ -127,12 +134,12 @@ async def voice_chat(
 
         if not user_text or user_text.strip() == "":
             user_text = "Sessizlik"
-            ai_response = "Ahmet Amca, ne dediğini tam seçemedim. Tekrar söyler misin canım benim?"
+            ai_response = f"{display_name}, ne dediğini tam seçemedim. Tekrar söyler misin?"
         else:
             response = groq_client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": build_system_prompt(user_name)},
                     {"role": "user", "content": user_text}
                 ],
                 max_tokens=150,
@@ -140,13 +147,13 @@ async def voice_chat(
             )
             ai_response = response.choices[0].message.content
             
-            # Dinamik oturuma kaydetme
-            save_message(conversation_id=conversation_id, role="user", content=user_text)
-            save_message(conversation_id=conversation_id, role="assistant", content=ai_response)
+            # Dinamik oturuma kaydetme, user_id ile de gerçek kullanıcıya bağlama
+            save_message(conversation_id=conversation_id, role="user", content=user_text, user_id=user_id)
+            save_message(conversation_id=conversation_id, role="assistant", content=ai_response, user_id=user_id)
 
     except Exception as e:
         user_text = "Ses dosyası işlenirken teknik hata oluştu."
-        ai_response = "Ahmet Amca sesini tam alamadım, iyi misin, her şey yolunda mı?"
+        ai_response = f"{display_name}, sesini tam alamadım, iyi misin, her şey yolunda mı?"
     
     return {
         "user_transcription": user_text,
