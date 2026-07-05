@@ -365,11 +365,18 @@ async def generate_ai_summary(data: SummaryRequestModel):
         # Bu yüzden conversation_id üzerinden arama yapmak mesajları hiç bulamıyordu.
         # Mesajlar gönderilirken gerçek kullanıcı kimliği ayrıca "user_id" sütununa da yazılıyor
         # (app.js -> realUserId), o yüzden burada asıl aramayı user_id üzerinden yapıyoruz.
+        #
+        # Ayrıca bu "günlük özet" olduğu için sadece BUGÜNÜN mesajlarını çekiyoruz.
+        # Öncesinde tarih filtresi yoktu, bu yüzden dünkü/önceki günlerin mesajları da
+        # son-15 mesaj limitine dahil olup özete karışabiliyordu.
+        today_start = datetime.now().strftime("%Y-%m-%dT00:00:00")
+
         messages_response = supabase.table("messages") \
             .select("role, content") \
             .eq("user_id", data.conversation_id) \
+            .gte("created_at", today_start) \
             .order("created_at", desc=True) \
-            .limit(15) \
+            .limit(30) \
             .execute()
 
         if not messages_response.data:
