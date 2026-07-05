@@ -311,11 +311,115 @@ async def family_login(data: FamilyLoginModel):
         # Şifre kontrolü (Geliştirme aşaması için düz metin karşılaştırması)
         if user.get("family_password") != data.password:
             raise HTTPException(status_code=401, detail="Hatalı şifre girdiniz.")
-            
-        return {"success": True, "message": f"Hoş geldiniz, {user.get('family_name')}", "user_id": user.get("id")}
+
+        # Frontend (authorization.js) tam olarak bu alan adlarını okuyor:
+        # family_name, elderly_id, elderly_name -> bunlar eksikti, elderly_id "undefined" geliyordu.
+        return {
+            "success": True,
+            "message": f"Hoş geldiniz, {user.get('family_name')}",
+            "family_name": user.get("family_name"),
+            "elderly_id": user.get("id"),
+            "elderly_name": user.get("name"),
+            "user_id": user.get("id")  # geriye dönük uyumluluk için bırakıldı
+        }
     except Exception as e:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail="Giriş yapılırken veritabanı hatası oluştu.")
+
+# ==========================================
+# 6.b AİLE PANELİ - ÖZET VERİLERİ (EKSİK OLAN VE EKLENEN)
+# ==========================================
+class SummaryRequestModel(BaseModel):
+    conversation_id: str
+
+@app.get("/api/family/dashboard-summary/{elderly_id}")
+async def dashboard_summary(elderly_id: str):
+    """
+    dashboard.js bu endpoint'i çağırıyordu ama main.py'de hiç tanımlı değildi (404 sebebi buydu).
+    Not: Şu an veritabanı şemasında ilaç uyumu (medication) ve aktivite (activity) için
+    kalıcı bir kayıt mekanizması yok (/api/medication endpoint'i hiçbir şeyi veritabanına yazmıyor).
+    Bu yüzden o iki alanı gerçek veri gelene kadar dürüstçe "Takip edilmiyor" olarak dönüyoruz;
+    sadece check-in (mood) verisi gerçek veritabanından geliyor.
+    """
+    try:
+        checkin = get_today_checkin_status(conversation_id=elderly_id)
+        latest_mood = checkin["mood"] if checkin else "normal"
+
+        return {
+            "success": True,
+            "latest_mood": latest_mood,
+            "medication_status": "Takip edilmiyor",
+            "activity_status": "Takip edilmiyor"
+        }
+    except Exception as e:
+        print("!!! DASHBOARD-SUMMARY HATASI:", str(e))
+        raise HTTPException(status_code=500, detail="Panel özeti alınamadı.")
+
+
+@app.post("/api/family/generate-ai-summary")
+async def generate_ai_summary(data: SummaryRequestModel):
+    """dashboard.js bu endpoint'i de çağırıyordu ama main.py'de tanımlı değildi (404 sebebi buydu)."""
+    try:
+        # ÖNEMLİ: Sohbet mesajları elderly_id (users.id) ile değil, sayfa her açıldığında
+        # rastgele üretilen bir "activeChatId" (conversation_id) ile kaydediliyor (bkz. app.js).
+        # Bu yüzden conversation_id üzerinden arama yapmak mesajları hiç bulamıyordu.
+        # Mesajlar gönderilirken gerçek kullanıcı kimliği ayrıca "user_id" sütununa da yazılıyor
+        # (app.js -> realUserId), o yüzden burada asıl aramayı user_id üzerinden yapıyoruz.
+        messages_response = supabase.table("messages") \
+            .select("role, content") \
+            .eq("user_id", data.conversation_id) \
+            .order("created_at", desc=True) \
+            .limit(15) \
+            .execute()
+
+        if not messages_response.data:
+            return {
+                "success": True,
+                "summary": "Bugün henüz dijital refakatçi ile bir sohbet gerçekleşmedi. Yaşlınızın genel durumu stabil görünüyor."
+            }
+
+        chat_history = list(reversed(messages_response.data))
+
+        # İlgili yaşlının gerçek adını çekiyoruz (sabit isim kullanmıyoruz)
+        elderly_name = "kullanıcı"
+        try:
+            user_resp = supabase.table("users").select("name").eq("id", data.conversation_id).execute()
+            if user_resp.data and user_resp.data[0].get("name"):
+                elderly_name = user_resp.data[0]["name"]
+        except Exception as name_err:
+            print("[İSİM ÇEKME HATASI]:", str(name_err))
+
+        formatted_history = ""
+        for msg in chat_history:
+            sender = elderly_name if msg["role"] == "user" else "Asistan"
+            formatted_history += f"{sender}: {msg['content']}\n"
+
+        ai_family_prompt = (
+            "Sen 'Yanımda Al' projesinin arka plandaki analiz zekasısın. "
+            f"Sana yalnız yaşayan {elderly_name} ile dijital refakatçi asistan arasındaki son sohbet geçmişi verilecek. "
+            f"Bu konuşmaları analiz ederek {elderly_name}'nın ailesine/refakatçisine ulaştırılacak kısa, "
+            f"samimi ama bilgilendirici bir günlük özet çıkar. {elderly_name}'nın modunu, sağlığıyla veya "
+            "ilaçlarıyla ilgili verdiği ipuçlarını, eğer varsa bir sıkıntısını veya talebini mutlaka belirt. "
+            "Tıbbi kararlar verme, doğrudan durumu özetle. Maksimum 3-4 cümle olsun."
+        )
+
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": ai_family_prompt},
+                {"role": "user", "content": f"Analiz edilecek sohbet geçmişi:\n{formatted_history}"}
+            ],
+            max_tokens=200,
+            temperature=0.5
+        )
+
+        ai_summary = response.choices[0].message.content.strip()
+        return {"success": True, "summary": ai_summary}
+
+    except Exception as e:
+        print(f"[AI ÖZET HATASI]: {str(e)}")
+        raise HTTPException(status_code=500, detail="Yapay zeka özeti şu an üretilemedi.")
+
 
 @app.post("/api/auth/register")
 async def register_user_and_family(data: FullRegisterModel):

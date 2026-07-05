@@ -10,12 +10,22 @@ router = APIRouter(tags=["Chat"])
 
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-SYSTEM_PROMPT = (
-    "Sen 'Yanımda Al' projesinde yalnız yaşayan yaşlılara destek olan sevecen, "
-    "sabırlı ve neşeli bir dijital refakatçi ajansın. Karşındaki kişi 65 yaş üstü "
-    "Ahmet Amca. Cümlelerin çok uzun olmasın, onun durumunu sor, empati yap ve "
-    "onu motive et. Tıbbi teşhis veya tedavi önerisi verme."
-)
+def get_elderly_name(conversation_id: str) -> str:
+    try:
+        resp = supabase.table("users").select("name").eq("id", conversation_id).execute()
+        if resp.data:
+            return resp.data[0]["name"]
+    except Exception as e:
+        print("İsim çekilemedi:", e)
+    return "kullanıcı"
+
+def build_system_prompt(elderly_name: str) -> str:
+    return (
+        "Sen 'Yanımda Al' projesinde yalnız yaşayan yaşlılara destek olan sevecen, "
+        f"sabırlı ve neşeli bir dijital refakatçi ajansın. Karşındaki kişi 65 yaş üstü "
+        f"{elderly_name}. Cümlelerin çok uzun olmasın, onun durumunu sor, empati yap ve "
+        "onu motive et. Tıbbi teşhis veya tedavi önerisi verme."
+    )
 
 class TextMessageModel(BaseModel):
     conversation_id: str  # Artık zorunlu ve dinamik
@@ -33,7 +43,7 @@ async def text_chat(data: TextMessageModel):
         response = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": build_system_prompt(get_elderly_name(data.conversation_id))},
                 {"role": "user", "content": data.message}
             ],
             max_tokens=150,
@@ -91,7 +101,7 @@ async def voice_chat(
             response = groq_client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": build_system_prompt(get_elderly_name(conversation_id))},
                     {"role": "user", "content": user_text}
                 ],
                 max_tokens=150,

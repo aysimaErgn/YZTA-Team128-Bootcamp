@@ -15,6 +15,10 @@ class FullRegisterRequest(BaseModel):
     elderly: dict
     family: dict
 
+class FamilyLoginRequest(BaseModel):
+    phone: str
+    password: str
+
 def base64_to_image(base64_string):
     try:
         if "," in base64_string:
@@ -158,3 +162,29 @@ async def credentials_login(request: CredentialsAuthRequest):
         print("!!! CREDENTIALS LOGIN COKTU:", str(e))
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=400, detail=f"Giriş esnasında hata: {str(e)}")
+
+
+
+@router.post("/auth/family-login")
+async def family_login(request: FamilyLoginRequest):
+    try:
+        response = supabase.table("users").select(
+            "id, name, family_name, family_phone, family_password"
+        ).eq("family_phone", request.phone).execute()
+
+        if not response.data:
+            raise HTTPException(status_code=401, detail="Telefon numarası bulunamadı.")
+
+        user = response.data[0]
+        if str(user.get("family_password")) != str(request.password):
+            raise HTTPException(status_code=401, detail="Şifre hatalı.")
+
+        return {
+            "success": True,
+            "family_name": user["family_name"],
+            "elderly_id": user["id"],
+            "elderly_name": user["name"]
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=400, detail=f"Giriş hatası: {str(e)}")
