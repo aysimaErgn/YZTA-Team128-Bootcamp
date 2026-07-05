@@ -159,11 +159,10 @@ Ajanı  Ajanı   Ajanı
 ### Veri Katmanı
 - PostgreSQL
 - Supabase
-- ChromaDB
 
 ### DevOps
 - GitHub
----
+- Trello
 
 # Product Backlog
 
@@ -172,13 +171,13 @@ Ajanı  Ajanı   Ajanı
 * [ ] GitHub Repository Kurulumu
 * [ ] FastAPI Backend Kurulumu
 * [ ] Frontend Kurulumu
-* [ ] GPT Entegrasyonu
+* [ ] LLM Entegrasyonu
 * [ ] Temel Sohbet Sistemi
 * [ ] Kullanıcı Profili Modeli
-* [ ] ChromaDB Kurulumu
+* [ ] Supabase Kurulumu
 * [ ] Hafıza Sistemi
 * [ ] Temel Chat Arayüzü
-
+* [ ] Aile Paneli
 ---
 
 ## Sprint 2 - Sağlık ve Aile Paneli
@@ -186,7 +185,6 @@ Ajanı  Ajanı   Ajanı
 * [ ] İlaç Hatırlatma Sistemi
 * [ ] İlaç Tanıma Modülü
 * [ ] Agent Orkestrasyonu
-* [ ] Aile Paneli
 * [ ] Haftalık Özetler
 * [ ] Kullanıcı Durum Takibi
 
@@ -218,13 +216,34 @@ Yanımda AI ile yalnız yaşayan yaşlı bireylerin yaşam kalitesini artırmak,
 
 Proje başlangıç aşamasında olduğundan ekibin geçmiş deneyimleri ve ilgi alanları göz önünde bulundurularak backlog dağıtımı yapılmıştır.
 
-## 25.06.2026
-
 ### Sprint Board Durumu
-<img width="1512" height="690" alt="image" src="https://github.com/user-attachments/assets/8b0f27fd-1651-4fc4-b917-1e29fd691aeb" />
+<img width="1515" height="692" alt="image" src="https://github.com/user-attachments/assets/af4cc7e6-3f8c-489b-a65f-4dfa3cebd6ae" />
+
 
 ### Ürün Durumu
-<img width="1917" height="1012" alt="image" src="https://github.com/user-attachments/assets/777af316-433e-446e-9390-2c1e51ba52a5" />
+
+#### Yaşlı Paneli Güncel Durum
+<img width="1917" height="962" alt="image" src="https://github.com/user-attachments/assets/645768b1-d927-4a05-aeb7-b63847659dc0" />
+
+#### Aile Paneli Güncel Durum
+<img width="1917" height="952" alt="image" src="https://github.com/user-attachments/assets/07b02f8c-e913-4656-9a2b-711c7c522cad" />
+
+#### Sprint Özeti
+
+Bu sprintte projenin temel MVP'si üretilmiştir.
+- Kullanıcı Girişi ve Aile Girişi Ekranları Arayüzleri
+- Yaşlılar için Yüz Tanıma ile Giriş
+- Chat Arayüzü Oluşturulması
+- Hem Yazılı Hem Sesle Sohbet Edebilme
+- Veritabanı Kurulumu
+- Backend Kurulumu
+- LLM Entegrasyonu
+- Sohbet Geçmişinin Tutulması
+- Günlük Kontrol (Check-In) Yapılması
+- Aile Paneli Frontend Kurulumu
+- Aile Paneli Authentication
+- Aile Paneli LLM Kurulumu (Yapay Zeka Özeti)
+Görevleri yerine getirilmiştir. 
 
 
 
