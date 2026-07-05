@@ -216,6 +216,10 @@ Yanımda AI ile yalnız yaşayan yaşlı bireylerin yaşam kalitesini artırmak,
 
 Proje başlangıç aşamasında olduğundan ekibin geçmiş deneyimleri ve ilgi alanları göz önünde bulundurularak backlog dağıtımı yapılmıştır.
 
+## Daily Scrum Notları
+Görüşmeler Whatsapp üzerinden yapılmıştır. Görseller linkteki klasörde yer almaktadır.
+https://drive.google.com/drive/folders/1RujrkABXAeZNB_iCODFCfIC18ArKqjYd?usp=sharing
+
 ### Sprint Board Durumu
 <img width="1515" height="692" alt="image" src="https://github.com/user-attachments/assets/af4cc7e6-3f8c-489b-a65f-4dfa3cebd6ae" />
 
@@ -228,7 +232,7 @@ Proje başlangıç aşamasında olduğundan ekibin geçmiş deneyimleri ve ilgi 
 #### Aile Paneli Güncel Durum
 <img width="1917" height="952" alt="image" src="https://github.com/user-attachments/assets/07b02f8c-e913-4656-9a2b-711c7c522cad" />
 
-#### Sprint Özeti
+#### Sprint Review
 
 Bu sprintte projenin temel MVP'si üretilmiştir.
 - Kullanıcı Girişi ve Aile Girişi Ekranları Arayüzleri
@@ -243,7 +247,11 @@ Bu sprintte projenin temel MVP'si üretilmiştir.
 - Aile Paneli Frontend Kurulumu
 - Aile Paneli Authentication
 - Aile Paneli LLM Kurulumu (Yapay Zeka Özeti)
-Görevleri yerine getirilmiştir. 
+Görevleri yerine getirilmiştir. Proje şuan ayağa kaldırılabilir durumdadır. Projenin güncel durumu tüm takım tarafından değerlendirilmiştir.
+
+### Sprint Retrospektive
+
+İlk sprint boyunca ekip arası iletişim sağlanmıştır. Proje ekibinde teknik altyapısı güçlü olmayan kişilerin öğrenme ve adaptasyon süreci olmuştur. Ayrıca ilk sprintin kapsamı geniş olduğundan görevler bazen beklenenden uzun sürede tamamlanmış, belirli sorunlarla karşılaşılmış ve bunlar ekip yardımlaşmasıyla çözüme kavuşturulmuştur. Karşılaşılan zorluklar göz önünde bulundurulduğunda ilk sprint oldukça başarılı bir şekilde bitmiştir. Bu süreç için belirlenen hedeflerin hepsi tamamlanmıştır. Bir sonraki sprintte hedef, geliştirme sürecinin daha verimli ve daha koordine bir şekilde ilerlemesini sağlamaktır. 
 
 
 
