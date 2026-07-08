@@ -165,6 +165,9 @@ Ajanı  Ajanı   Ajanı
 - Trello
 
 # Product Backlog
+Tüm süreç Trello ile yönetilmektedir. Scrum Board'a aşağıdaki linkten erişebilirsiniz.
+
+https://trello.com/invite/b/6a3d3aede057f19cb52a71e2/ATTIc79c0a42c416fbe1b7ca320160a990fc6C95709F/bootcamp
 
 ## Sprint 1 - Temel MVP
 
