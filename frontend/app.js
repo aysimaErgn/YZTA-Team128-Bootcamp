@@ -48,9 +48,43 @@ const historyTodayList = document.getElementById('history-today');
 
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 
+async function initKioskDemoMode() {
+    const params = new URLSearchParams(window.location.search);
+    const forceDemo = params.get('demo') === '1';
+    const hasLogin = Boolean(localStorage.getItem('user_id'));
+
+    if (hasLogin && !forceDemo) {
+        return false;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/medications/demo/kiosk`, { method: 'POST' });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.detail || 'Demo mod başlatılamadı');
+        }
+
+        localStorage.setItem('elder_id', data.elder.id);
+        localStorage.setItem('kiosk_demo_mode', '1');
+        localStorage.setItem('user_name', 'Ahmet Amca');
+        localStorage.setItem('elder_profile_id_fallback', data.demo_user_id);
+
+        userDisplayName = 'Ahmet Amca';
+        elderProfileId = data.demo_user_id;
+
+        console.log('[DEMO] Kiosk demo hazır:', data);
+        return data;
+    } catch (error) {
+        console.error('Demo mod hatası:', error);
+        return false;
+    }
+}
+
 // Sayfa ilk yüklendiğinde Supabase'deki geçmiş sohbetleri getirir
 
 window.addEventListener('DOMContentLoaded', async () => {
+    await initKioskDemoMode();
+
     // 1. Sol menüdeki geçmiş başlıklarını çek ve oluştur (Dünküler sol menüde listelenir)
     await loadConversationsFromSupabase();
     
@@ -72,8 +106,25 @@ window.addEventListener('DOMContentLoaded', async () => {
         checkinGreetingEl.textContent = `${userDisplayName}, bugün kendini nasıl hissediyorsun?`;
     }
 
-    // 3. Bugün check-in yapılmamışsa hatırlatma pop-up'ını göster
-    checkAndShowCheckinReminder();
+    // İlaç listesini API'den yükle (kiosk modu — tanımlama aile panelinde)
+    if (typeof MedicationDefinitions !== 'undefined') {
+        await MedicationDefinitions.init({
+            mode: 'kiosk',
+            apiBaseUrl: API_BASE_URL,
+            todayOnly: true,
+            userId: localStorage.getItem('user_id') || localStorage.getItem('elder_profile_id_fallback'),
+            userName: userDisplayName,
+            elderId: localStorage.getItem('elder_id'),
+        });
+    }
+
+    // elder_id eşleştikten sonra WebSocket bağlantısını kur
+    initWebSocket();
+
+    // Demo modda check-in pop-up'ını gösterme
+    if (!localStorage.getItem('kiosk_demo_mode')) {
+        checkAndShowCheckinReminder();
+    }
 });
 
 // Sayfa açılışında bugün check-in yapılıp yapılmadığını kontrol edip gerekirse pop-up gösterir.
@@ -140,6 +191,10 @@ function switchPage(pageId) {
     if (pageId === 'durum') {
         loadCheckinHistory();
         loadCheckinStatus();
+    }
+
+    if (pageId === 'ilaclar' && typeof MedicationDefinitions !== 'undefined') {
+        MedicationDefinitions.refresh();
     }
 }
 
@@ -383,33 +438,136 @@ async function completeCheckin(mood) {
     } catch (error) { alert("Bağlantı hatası."); }
 }
 
-// İlaç onay mekanizması
-async function takeMed(id) {
-    try {
-        await fetch(`${API_BASE_URL}/medication`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ med_id: id })
-        });
-        const item = document.getElementById(id);
-        item.classList.add('done');
-        item.querySelectorAll('button').forEach(btn => btn.style.display = 'none');
-        const checkMark = document.createElement('span');
-        checkMark.innerText = "✓ Tamamlandı";
-        checkMark.style.color = "var(--success-color)";
-        checkMark.style.fontWeight = "700";
-        item.appendChild(checkMark);
-    } catch (error) { alert("Bağlantı hatası."); }
+// İlaç onay mekanizması (eski stub — MedicationDefinitions'a yönlendirir)
+async function takeMed(medicationId) {
+    if (typeof MedicationDefinitions !== 'undefined') {
+        const card = document.getElementById(`med-card-${medicationId}`);
+        const medName = card?.dataset?.medName || 'İlaç';
+        await MedicationDefinitions.markTaken(medicationId, null, medName);
+    }
 }
 
-// Kamera doğrulama simülasyonu
-async function simulatePhoto() {
-    const formData = new FormData();
-    formData.append("file", new Blob(), "photo.jpg");
+// WEBSOCKET: İlaç Hatırlatma Sistemi
+let medicationSocket = null;
+let currentMedAlert = null;
+let snoozeTimer = null;
+const SNOOZE_MINUTES = 10;
+
+function getElderIdForWs() {
+    return (
+        (typeof MedicationDefinitions !== 'undefined' && MedicationDefinitions.getElderId()) ||
+        localStorage.getItem('elder_id') ||
+        elderProfileId
+    );
+}
+
+function initWebSocket() {
+    const elderId = getElderIdForWs();
+    if (!elderId) return;
+
+    if (medicationSocket) {
+        medicationSocket.onclose = null;
+        medicationSocket.close();
+    }
+
+    const wsUrl = `ws://127.0.0.1:8000/ws/medication/${elderId}`;
+    medicationSocket = new WebSocket(wsUrl);
+
+    medicationSocket.onopen = () => console.log(`WebSocket bağlandı (elder: ${elderId})`);
+    medicationSocket.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.aksiyon === 'ILAC_HATIRLATMA') {
+                showMedicationAlert(data);
+            }
+        } catch (e) {
+            console.error('WS mesaj hatası', e);
+        }
+    };
+    medicationSocket.onclose = () => {
+        console.log('WebSocket koptu. Tekrar deneniyor...');
+        setTimeout(initWebSocket, 5000);
+    };
+}
+
+function speakTurkish(text) {
+    if ('speechSynthesis' in window) {
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'tr-TR';
+        window.speechSynthesis.speak(msg);
+    }
+}
+
+function showMedicationAlert(data) {
+    currentMedAlert = data;
+
+    switchPage('ilaclar');
+
+    document.getElementById('medAlertTitle').innerText = `${data.ilac_adi} Saati!`;
+    document.getElementById('medAlertDesc').innerText = `Lütfen doz: ${data.dozaj || 'Belirtilmemiş'} ilacınızı alın.`;
+    document.getElementById('medicationAlertModal').style.display = 'flex';
+
+    speakTurkish(`İlaç saatiniz geldi. Lütfen ${data.ilac_adi} ilacınızı alın.`);
+}
+
+async function logMedication(status, method) {
+    if (!currentMedAlert) return;
+
     try {
-        const response = await fetch(`${API_BASE_URL}/medication/recognize`, { method: "POST", body: formData });
-        const data = await response.json();
-        alert(`📷 ${data.recognized_med} kutusu başarıyla doğrulandı!`);
-        takeMed('med2');
-    } catch (error) { alert("Bağlantı hatası."); }
+        const formData = new FormData();
+        formData.append('medication_id', currentMedAlert.medication_id);
+        formData.append('status', status);
+        formData.append('confirmed_method', method);
+        if (currentMedAlert.schedule_id) {
+            formData.append('schedule_id', currentMedAlert.schedule_id);
+        }
+
+        await fetch(`${API_BASE_URL}/medication/log`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        document.getElementById('medicationAlertModal').style.display = 'none';
+
+        if (status === 'taken') {
+            speakTurkish('Teşekkürler, ilacınızı içtiğiniz kaydedildi.');
+            appendMessageToUI(`${currentMedAlert.ilac_adi} ilacı başarıyla alındı.`, 'system');
+            if (typeof MedicationDefinitions !== 'undefined') {
+                MedicationDefinitions.refresh();
+            }
+        } else if (status === 'snoozed') {
+            speakTurkish('Tamam, biraz sonra tekrar hatırlatacağım.');
+            scheduleSnoozeReminder();
+        }
+
+        if (status !== 'snoozed') {
+            currentMedAlert = null;
+        }
+    } catch (e) {
+        console.error('Log hatası:', e);
+    }
+}
+
+function scheduleSnoozeReminder() {
+    if (snoozeTimer) clearTimeout(snoozeTimer);
+    snoozeTimer = setTimeout(() => {
+        if (currentMedAlert) {
+            showMedicationAlert(currentMedAlert);
+        }
+    }, SNOOZE_MINUTES * 60 * 1000);
+}
+
+function openMedicationCamera() {
+    document.getElementById('medicationAlertModal').style.display = 'none';
+    if (typeof MedicationRecognition !== 'undefined' && currentMedAlert) {
+        MedicationRecognition.open(
+            currentMedAlert.medication_id,
+            currentMedAlert.ilac_adi,
+            currentMedAlert.schedule_id
+        );
+    }
+}
+
+function dismissMedicationAlert() {
+    logMedication('snoozed', 'snooze');
 }

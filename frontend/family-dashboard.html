@@ -6,6 +6,7 @@
     <title>Yanımda Al - Refakatçi Paneli</title>
     <link rel="stylesheet" href="sheet.css">
     <link rel="stylesheet" href="family-dashboard.css">
+    <link rel="stylesheet" href="definitions.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -18,6 +19,7 @@
             <ul class="sidebar-menu">
                 <li class="active" onclick="switchDashboardTab('summary')"><i class="fas fa-chart-pie"></i> Mevcut Durum</li>
                 <li onclick="switchDashboardTab('history')"><i class="fas fa-history"></i> Geçmiş Durumlar</li>
+                <li onclick="switchDashboardTab('medications')"><i class="fas fa-pills"></i> İlaç Yönetimi</li>
                 <li onclick="switchDashboardTab('settings')"><i class="fas fa-cog"></i> Ayarlar</li>
                 <li onclick="handleLogout()" style="margin-top: 60px; color: #EF4444;"><i class="fas fa-sign-out-alt"></i> Çıkış Yap</li>
             </ul>
@@ -66,7 +68,17 @@
                     </div>
                 </div>
 
-                <div class="panel-section">
+                <div class="panel-section" id="med-alerts-panel" style="display:none; margin-top: 20px; border-left: 4px solid #EF4444;">
+                    <h3 style="color: var(--text-main); font-weight: 600;"><i class="fas fa-exclamation-triangle" style="color: #EF4444; margin-right: 8px;"></i> İlaç Uyarıları</h3>
+                    <div id="med-alerts-list"></div>
+                </div>
+
+                <div class="panel-section" style="margin-top: 20px;">
+                    <h3 style="color: var(--text-main); font-weight: 600;"><i class="fas fa-chart-line" style="color: var(--brand-color); margin-right: 8px;"></i> Haftalık İlaç Uyumu</h3>
+                    <div id="weekly-trend-chart" style="margin-top: 12px;"></div>
+                </div>
+
+                <div class="panel-section" style="margin-top: 20px;">
                     <h3 style="color: var(--text-main); font-weight: 600;"><i class="fas fa-bell" style="color: #F59E0B; margin-right: 8px;"></i> Yapay Zeka Günlük Özeti</h3>
                     <p style="line-height: 1.7; color: var(--text-main); margin-top: 15px; font-size: 15px;" id="ai-summary">
                         Bugün Ahmet Amca ilaçlarını zamanında aldı. Öğleden sonra odada normalden biraz daha uzun süre hareketsiz kaldı ancak şu an genel durumu iyi görünüyor.
@@ -89,20 +101,18 @@
                             </tr>
                         </thead>
                         <tbody id="history-table-body">
-                            <tr>
-                                <td>03.07.2026 14:30</td>
-                                <td>İlaç Hatırlatıcı</td>
-                                <td><span class="status-badge status-good">Başarılı</span></td>
-                                <td>Tansiyon ilacı zamanında onaylandı.</td>
-                            </tr>
-                            <tr>
-                                <td>03.07.2026 11:15</td>
-                                <td>Hareketsizlik Uyarısı</td>
-                                <td><span class="status-badge status-warn">İnceleme</span></td>
-                                <td>Yatak odasında 2 saat boyunca hareket tespit edilmedi.</td>
-                            </tr>
+                            <tr><td colspan="4">Kayıtlar yükleniyor...</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <div id="sec-medications" class="dashboard-section" style="display: none;">
+                <div class="panel-section">
+                    <h3 style="color: var(--text-main); font-weight: 600;"><i class="fas fa-pills" style="margin-right: 8px; color: var(--brand-color);"></i> İlaç Tanımlama</h3>
+                    <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 14px;">Yakınınızın ilaçlarını ve hatırlatma saatlerini buradan tanımlayabilirsiniz.</p>
+                    <div id="familyMedFormRoot"></div>
+                    <div id="familyMedListRoot"></div>
                 </div>
             </div>
 
@@ -117,6 +127,7 @@
         </div>
     </div>
 
+    <script src="definitions.js"></script>
     <script src="dashboard.js"></script>
 </body>
 </html>

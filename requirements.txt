@@ -8,4 +8,6 @@ supabase
 deepface
 opencv-python
 numpy
-tf-keras
+tf-keras==2.18.0
+apscheduler
+websockets
