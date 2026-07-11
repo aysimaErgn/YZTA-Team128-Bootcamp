@@ -1,0 +1,135 @@
+"""
+Sağlık Ajanı — ilaç tanıma sonucunu planlanan ilaçla eşleştirir,
+log kaydı oluşturur ve gerekirse Eskalasyon Ajanına sinyal gönderir.
+"""
+from datetime import datetime
+from typing import Any
+
+from database import supabase
+
+from medication import service as medication_service
+
+STATUS_TAKEN = "taken"
+STATUS_MISSED = "missed"
+STATUS_WRONG = "wrong_medication"
+STATUS_SNOOZED = "snoozed"
+
+
+def evaluate_recognition(
+    medication_id: str,
+    schedule_id: str | None,
+    recognized_name: str,
+    expected_name: str,
+    is_match: bool | None,
+) -> dict[str, Any]:
+    """Vision sonucunu değerlendirir; doğru ilaçsa taken, değilse wrong_medication."""
+    if is_match is False:
+        log = medication_service.create_medication_log(
+            medication_id=medication_id,
+            schedule_id=schedule_id,
+            status=STATUS_WRONG,
+            confirmation_method="camera",
+        )
+        _create_escalation_alert(
+            medication_id=medication_id,
+            alert_type="wrong_medication",
+            severity="high",
+            description=(
+                f"Yanlış ilaç tespit edildi. Beklenen: '{expected_name}', "
+                f"tanınan: '{recognized_name}'."
+            ),
+        )
+        return {
+            "decision": STATUS_WRONG,
+            "message": (
+                f"Bu ilaç beklenen '{expected_name}' ile uyuşmuyor. "
+                "Lütfen doğru kutuyu gösterin veya bir yakınınıza danışın."
+            ),
+            "log": log,
+        }
+
+    log = medication_service.create_medication_log(
+        medication_id=medication_id,
+        schedule_id=schedule_id,
+        status=STATUS_TAKEN,
+        confirmation_method="camera",
+    )
+    return {
+        "decision": STATUS_TAKEN,
+        "message": f"Harika, doğru ilaç: {recognized_name}. İçebilirsiniz.",
+        "log": log,
+    }
+
+
+def record_manual_taken(
+    medication_id: str,
+    schedule_id: str | None,
+    confirmation_method: str = "button",
+) -> dict[str, Any]:
+    log = medication_service.create_medication_log(
+        medication_id=medication_id,
+        schedule_id=schedule_id,
+        status=STATUS_TAKEN,
+        confirmation_method=confirmation_method,
+    )
+    return {"decision": STATUS_TAKEN, "message": "İlaç alındı olarak kaydedildi.", "log": log}
+
+
+def record_snooze(medication_id: str, schedule_id: str | None) -> dict[str, Any]:
+    """Erteleme — eskalasyon tetiklenmez, yalnızca izleme kaydı."""
+    log = medication_service.create_medication_log(
+        medication_id=medication_id,
+        schedule_id=schedule_id,
+        status=STATUS_SNOOZED,
+        confirmation_method="snooze",
+    )
+    return {"decision": STATUS_SNOOZED, "message": "Hatırlatma ertelendi.", "log": log}
+
+
+def record_missed(medication_id: str, schedule_id: str | None, reason: str = "timeout") -> dict[str, Any]:
+    if medication_service.has_schedule_been_resolved_today(medication_id, schedule_id):
+        return {"decision": "skipped", "message": "Bu doz zaten kayıtlı.", "log": None}
+
+    log = medication_service.create_medication_log(
+        medication_id=medication_id,
+        schedule_id=schedule_id,
+        status=STATUS_MISSED,
+        confirmation_method=reason,
+    )
+    medication = medication_service.get_medication(medication_id) or {}
+    med_name = medication.get("name", "İlaç")
+    elder_id = medication.get("elder_id")
+    _create_escalation_alert(
+        medication_id=medication_id,
+        elder_id=elder_id,
+        alert_type="medication_missed",
+        severity="high",
+        description=f"Yaşlı birey '{med_name}' ilacını almadı.",
+    )
+    return {"decision": STATUS_MISSED, "message": "İlaç kaçırıldı olarak işaretlendi.", "log": log}
+
+
+def _create_escalation_alert(
+    medication_id: str,
+    alert_type: str,
+    severity: str,
+    description: str,
+    elder_id: str | None = None,
+) -> None:
+    if not elder_id:
+        medication = medication_service.get_medication(medication_id) or {}
+        elder_id = medication.get("elder_id")
+    if not elder_id:
+        return
+
+    try:
+        supabase.table("alerts").insert(
+            {
+                "elder_id": elder_id,
+                "alert_type": alert_type,
+                "severity": severity,
+                "description": description,
+            }
+        ).execute()
+    except Exception as error:
+        print(f"[ESKALASYON] Alert kaydı başarısız: {error}")

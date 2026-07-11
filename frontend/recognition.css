@@ -1,0 +1,70 @@
+.med-rec-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    padding: 20px;
+}
+
+.med-rec-overlay.active {
+    display: flex;
+}
+
+.med-rec-card {
+    background: #fff;
+    border-radius: 24px;
+    padding: 24px;
+    width: min(720px, 96vw);
+    text-align: center;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25);
+}
+
+.med-rec-card h2 {
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+.med-rec-subtitle {
+    color: #64748B;
+    font-size: 18px;
+    margin-bottom: 16px;
+}
+
+.med-rec-preview-wrap {
+    background: #0F172A;
+    border-radius: 18px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    min-height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.med-rec-video,
+.med-rec-preview-img {
+    width: 100%;
+    max-height: 360px;
+    object-fit: cover;
+}
+
+.med-rec-status {
+    min-height: 24px;
+    font-size: 18px;
+    color: #334155;
+    margin-bottom: 12px;
+}
+
+.med-rec-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.med-rec-actions .btn {
+    min-width: 160px;
+}

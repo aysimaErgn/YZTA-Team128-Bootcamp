@@ -8,6 +8,7 @@ __pycache__/
 
 # VS Code
 .vscode/
+.cursor/
 
 # PyCharm
 .idea/
@@ -21,3 +22,8 @@ __pycache__/
 
 # Logs
 *.log
+
+# Local docs / utilities (not for repo)
+read_pdf.py
+Yanimda_AI_Proje_Dokumani.pdf
+insert_test_data.py

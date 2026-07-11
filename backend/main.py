@@ -8,14 +8,34 @@ import io
 from datetime import datetime
 import numpy as np
 import cv2
-from deepface import DeepFace  # dlib hatasını engelleyen güncel kütüphane
+
+def _get_deepface():
+    try:
+        from deepface import DeepFace
+        return DeepFace
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Yüz tanıma modülü hazır değil. 'pip install deepface tf-keras==2.18.0' komutunu çalıştırın.",
+        ) from error
+
 import json
 import base64
+import asyncio
 
-# --- VERİTABANI FONKSİYONLARI ---
 from database import save_message, create_client, Client, save_checkin, get_checkin_history, get_today_checkin_status
+from medication.router import router as medication_router
+from medication.crud_router import router as medication_crud_router
+from routers.websocket import router as websocket_router
+from routers.health import router as health_router
+from medication.scheduler import start_scheduler, set_event_loop
 
 app = FastAPI(title="Yanımda Al - Yaşlı Refakatçi API")
+
+@app.on_event("startup")
+async def startup_event():
+    set_event_loop(asyncio.get_running_loop())
+    start_scheduler()
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,11 +45,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(medication_router)
+app.include_router(medication_crud_router)
+app.include_router(websocket_router)
+app.include_router(health_router)
+
 load_dotenv()
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 SUPABASE_URL  = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- PYDANTIC MODELLERİ (DİNAMİK ID DESTEKLİ) ---
@@ -45,6 +70,9 @@ class CheckinModel(BaseModel):
 
 class MedModel(BaseModel):
     med_id: str
+
+class SummaryRequestModel(BaseModel):
+    conversation_id: str
 
 class FaceAuthRequest(BaseModel):
     image_data: str 
@@ -238,9 +266,57 @@ async def checkin_status(conversation_id: str):
 async def take_medication(data: MedModel):
     return {"status": "success"}
 
-@app.post("/api/medication/recognize")
-async def recognize_medication(file: UploadFile = File(...)):
-    return {"status": "success", "recognized_med": "Vitamin Takviyesi"}
+# İlaç tanıma: backend/medication/router.py
+
+@app.post("/api/family/generate-ai-summary")
+async def generate_ai_summary(data: SummaryRequestModel):
+    try:
+        messages_response = (
+            supabase.table("messages")
+            .select("role, content")
+            .eq("conversation_id", data.conversation_id)
+            .order("created_at", desc=True)
+            .limit(15)
+            .execute()
+        )
+
+        if not messages_response.data:
+            return {
+                "success": True,
+                "summary": (
+                    "Bugün henüz dijital refakatçi ile bir sohbet gerçekleşmedi. "
+                    "Yaşlınızın genel durumu stabil görünüyor."
+                ),
+            }
+
+        chat_history = list(reversed(messages_response.data))
+        formatted_history = ""
+        for msg in chat_history:
+            sender = "Yaşlı" if msg["role"] == "user" else "Asistan"
+            formatted_history += f"{sender}: {msg['content']}\n"
+
+        ai_family_prompt = (
+            "Sen 'Yanımda Al' projesinin arka plandaki analiz zekasısın. "
+            "Sana yalnız yaşayan bir birey ile dijital refakatçi asistan arasındaki son sohbet geçmişi verilecek. "
+            "Bu konuşmaları analiz ederek aileye/refakatçiye ulaştırılacak kısa, samimi ama bilgilendirici bir günlük özet çıkar. "
+            "Mod, sağlık veya ilaçlarla ilgili ipuçlarını ve varsa sıkıntıları belirt. "
+            "Tıbbi kararlar verme. Maksimum 3-4 cümle olsun."
+        )
+
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": ai_family_prompt},
+                {"role": "user", "content": f"Analiz edilecek sohbet geçmişi:\n{formatted_history}"},
+            ],
+            max_tokens=200,
+            temperature=0.5,
+        )
+
+        return {"success": True, "summary": response.choices[0].message.content.strip()}
+    except Exception as error:
+        print(f"[AI ÖZET HATASI]: {error}")
+        raise HTTPException(status_code=500, detail="Yapay zeka özeti şu an üretilemedi.") from error
 
 # ==========================================
 # 5. YÜZ TANIMA SİSTEMİ (DEEPFACE ENTEGRELİ)
@@ -249,6 +325,7 @@ async def recognize_medication(file: UploadFile = File(...)):
 async def register_face(request: FaceAuthRequest):
     try:
         rgb_image = base64_to_image(request.image_data)
+        DeepFace = _get_deepface()
         embeddings_data = DeepFace.represent(img_path=rgb_image, model_name="VGG-Face", enforce_detection=False, detector_backend="skip")
         if not embeddings_data or len(embeddings_data) == 0:
             raise HTTPException(status_code=400, detail="Fotoğrafta yüz tespit edilemedi!")
@@ -264,6 +341,7 @@ async def register_face(request: FaceAuthRequest):
 async def face_login(request: FaceAuthRequest):
     try:
         current_rgb_image = base64_to_image(request.image_data)
+        DeepFace = _get_deepface()
         current_embeddings = DeepFace.represent(img_path=current_rgb_image, model_name="VGG-Face", enforce_detection=False, detector_backend="skip")
         if not current_embeddings or len(current_embeddings) == 0:
             raise HTTPException(status_code=400, detail="Yüz algılanamadı.")

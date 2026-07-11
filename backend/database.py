@@ -7,7 +7,7 @@ from datetime import datetime
 load_dotenv()
 
 URL = os.getenv("SUPABASE_URL")
-KEY = os.getenv("SUPABASE_KEY")
+KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 # Supabase bağlantısını kur
 supabase: Client = create_client(URL, KEY)

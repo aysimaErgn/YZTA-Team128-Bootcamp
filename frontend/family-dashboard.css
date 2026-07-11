@@ -139,6 +139,11 @@
     color: #854D0E;
 }
 
+.status-bad {
+    background: #FEE2E2;
+    color: #991B1B;
+}
+
 /* Panel Panoları */
 .panel-section {
     background: var(--card-bg);

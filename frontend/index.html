@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Yanımda Al - Dijital Refakatçi</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="recognition.css">
+    <link rel="stylesheet" href="definitions.css">
 </head>
 
 <body>
@@ -51,25 +53,8 @@
 
             <div class="page" id="page-ilaclar">
                 <div class="page-title">📋 Bugünkü İlaçlarım</div>
-                <div class="routine-list">
-                    <div class="routine-item" id="med1">
-                        <div>
-                            <strong style="display:block; font-size:22px;">💊 Tansiyon İlacı</strong>
-                            <span style="font-size: 16px; color: var(--text-muted);">Sabah • Saat 09:00</span>
-                        </div>
-                        <button class="btn btn-success" style="width:auto; padding: 10px 20px; font-size: 18px;" onclick="takeMed('med1')">İçtim</button>
-                    </div>
-                    <div class="routine-item" id="med2">
-                        <div>
-                            <strong style="display:block; font-size:22px;">📸 Vitamin Takviyesi</strong>
-                            <span style="font-size: 16px; color: var(--text-muted);">Akşam • Saat 20:00</span>
-                        </div>
-                        <div style="display:flex; gap: 8px;">
-                            <button class="btn btn-neutral" style="width:auto; padding: 10px 20px; font-size: 18px;" onclick="simulatePhoto()">Kamerayla Çek</button>
-                            <button class="btn btn-success" style="width:auto; padding: 10px 20px; font-size: 18px;" onclick="takeMed('med2')">İçtim</button>
-                        </div>
-                    </div>
-                </div>
+                <div id="medicationToolbar"></div>
+                <div id="medicationList" class="routine-list"></div>
             </div>
 
             <div class="page" id="page-durum">
@@ -104,6 +89,29 @@
         </div>
     </div>
 
+    <!-- İlaç Ekleme Modal -->
+    <div id="medAddModal" class="med-add-modal">
+        <div class="med-add-modal-card">
+            <div id="medAddFormRoot"></div>
+        </div>
+    </div>
+
+    <!-- İlaç Hatırlatma Pop-up'ı -->
+    <div id="medicationAlertModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.4);">
+            <div style="font-size:64px; margin-bottom:10px;">💊</div>
+            <h2 id="medAlertTitle" style="margin:0 0 10px 0; font-size:26px; color:#1F2937;">İlaç Saati!</h2>
+            <p id="medAlertDesc" style="color:#6B7280; font-size:18px; margin-bottom:22px;">Lütfen ilacınızı alın.</p>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <button class="btn btn-success" style="width:100%; font-size:20px; padding:15px;" onclick="logMedication('taken', 'button')">İçtim</button>
+                <button class="btn btn-neutral" style="width:100%; font-size:20px; padding:15px;" onclick="openMedicationCamera()">İlacı Kameraya Göster</button>
+                <button class="btn" style="width:100%; font-size:16px; background:#f3f4f6; color:#4b5563; border:none; padding:10px; border-radius:8px; cursor:pointer;" onclick="dismissMedicationAlert()">Daha Sonra Hatırlat</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="definitions.js"></script>
+    <script src="recognition.js"></script>
     <script src="app.js"></script>
 </body>
 
