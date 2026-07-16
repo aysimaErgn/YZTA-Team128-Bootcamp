@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from groq import Groq
 import os
 from dotenv import load_dotenv
+load_dotenv()
 import io
 from datetime import datetime
 import numpy as np
@@ -37,9 +38,15 @@ async def startup_event():
     set_event_loop(asyncio.get_running_loop())
     start_scheduler()
 
+def _cors_origins() -> list[str]:
+    raw = (os.getenv("CORS_ORIGINS") or "*").strip()
+    if raw == "*":
+        return ["*"]
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,7 +57,6 @@ app.include_router(medication_crud_router)
 app.include_router(websocket_router)
 app.include_router(health_router)
 
-load_dotenv()
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 SUPABASE_URL  = os.getenv("SUPABASE_URL")
@@ -99,27 +105,76 @@ def build_system_prompt(user_name: str | None = None):
         "onu motive et. Tıbbi teşhis veya tedavi önerisi verme."
     )
 
+
+def _legacy_text_reply(message: str, user_name: str | None = None) -> str:
+    response = groq_client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": build_system_prompt(user_name)},
+            {"role": "user", "content": message},
+        ],
+        max_tokens=150,
+        temperature=0.7,
+    )
+    return response.choices[0].message.content
+
+
+def _resolve_elder_id_for_chat(user_id: str | None, user_name: str | None) -> str | None:
+    if not user_id and not (user_name or "").strip():
+        return None
+    try:
+        from medication import service as medication_service
+
+        elder = medication_service.resolve_elder_for_user(
+            user_id or "guest",
+            (user_name or "Yakınız").strip(),
+        )
+        return elder.get("id")
+    except Exception as error:
+        print(f"[ORCHESTRATOR] elder_id çözülemedi: {error}")
+        return user_id
+
+
 # ==========================================
 # 1. YAZILI SOHBET ENDPOINT (DİNAMİK)
 # ==========================================
 @app.post("/api/text-chat")
 async def text_chat(data: TextMessageModel):
     try:
-        response = groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "system", "content": build_system_prompt(data.user_name)},
-                {"role": "user", "content": data.message}
-            ],
-            max_tokens=150,
-            temperature=0.7
-        )
-        ai_response = response.choices[0].message.content
-        
-        # Gelen dinamik conversation_id ile veritabanına kaydediyoruz, user_id ile de gerçek kullanıcıya bağlıyoruz
+        from orchestrator.graph import is_orchestrator_enabled, run_orchestrator
+
+        if is_orchestrator_enabled():
+            elder_id = _resolve_elder_id_for_chat(data.user_id, data.user_name)
+            result = run_orchestrator(
+                message=data.message,
+                conversation_id=data.conversation_id,
+                elder_id=elder_id,
+                user_name=data.user_name,
+                user_id=data.user_id,
+            )
+            ai_response = result["ai_response"]
+            save_message(
+                conversation_id=data.conversation_id,
+                role="user",
+                content=data.message,
+                user_id=data.user_id,
+            )
+            save_message(
+                conversation_id=data.conversation_id,
+                role="assistant",
+                content=ai_response,
+                user_id=data.user_id,
+            )
+            return {
+                "ai_response": ai_response,
+                "intent": result.get("intent"),
+                "routed_agent": result.get("routed_agent"),
+                "escalation": result.get("escalation", False),
+            }
+
+        ai_response = _legacy_text_reply(data.message, data.user_name)
         save_message(conversation_id=data.conversation_id, role="user", content=data.message, user_id=data.user_id)
         save_message(conversation_id=data.conversation_id, role="assistant", content=ai_response, user_id=data.user_id)
-        
         return {"ai_response": ai_response}
     except Exception as e:
         return {"ai_response": f"SİSTEM HATASI BULUNDU: {str(e)}"}
@@ -163,21 +218,42 @@ async def voice_chat(
         if not user_text or user_text.strip() == "":
             user_text = "Sessizlik"
             ai_response = f"{display_name}, ne dediğini tam seçemedim. Tekrar söyler misin?"
-        else:
-            response = groq_client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "system", "content": build_system_prompt(user_name)},
-                    {"role": "user", "content": user_text}
-                ],
-                max_tokens=150,
-                temperature=0.7
+            return {
+                "user_transcription": user_text,
+                "text": user_text,
+                "ai_response": ai_response,
+                "response": ai_response,
+                "message": ai_response,
+            }
+
+        from orchestrator.graph import is_orchestrator_enabled, run_orchestrator
+
+        if is_orchestrator_enabled():
+            elder_id = _resolve_elder_id_for_chat(user_id, user_name)
+            result = run_orchestrator(
+                message=user_text,
+                conversation_id=conversation_id,
+                elder_id=elder_id,
+                user_name=user_name,
+                user_id=user_id,
             )
-            ai_response = response.choices[0].message.content
-            
-            # Dinamik oturuma kaydetme, user_id ile de gerçek kullanıcıya bağlama
+            ai_response = result["ai_response"]
             save_message(conversation_id=conversation_id, role="user", content=user_text, user_id=user_id)
             save_message(conversation_id=conversation_id, role="assistant", content=ai_response, user_id=user_id)
+            return {
+                "user_transcription": user_text,
+                "text": user_text,
+                "ai_response": ai_response,
+                "response": ai_response,
+                "message": ai_response,
+                "intent": result.get("intent"),
+                "routed_agent": result.get("routed_agent"),
+                "escalation": result.get("escalation", False),
+            }
+
+        ai_response = _legacy_text_reply(user_text, user_name)
+        save_message(conversation_id=conversation_id, role="user", content=user_text, user_id=user_id)
+        save_message(conversation_id=conversation_id, role="assistant", content=ai_response, user_id=user_id)
 
     except Exception as e:
         user_text = "Ses dosyası işlenirken teknik hata oluştu."

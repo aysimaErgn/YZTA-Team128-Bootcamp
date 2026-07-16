@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -6,16 +5,12 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from database import supabase
 from medication import service as medication_service
-from routers.websocket import manager
+from routers.websocket import manager, schedule_coro, set_event_loop
 
 LOCAL_TZ = ZoneInfo("Europe/Istanbul")
-_main_loop: asyncio.AbstractEventLoop | None = None
 _sent_reminders: set[str] = set()
 
-
-def set_event_loop(loop: asyncio.AbstractEventLoop) -> None:
-    global _main_loop
-    _main_loop = loop
+# set_event_loop: routers.websocket üzerinden re-export (main.py uyumu)
 
 
 def _reminder_key(schedule_id: str, date_str: str) -> str:
@@ -23,13 +18,7 @@ def _reminder_key(schedule_id: str, date_str: str) -> str:
 
 
 def _dispatch_ws_message(payload: dict, elder_id: str) -> None:
-    if not _main_loop or not _main_loop.is_running():
-        print(f"[SCHEDULER] Event loop yok, WS mesajı gönderilemedi: {elder_id}")
-        return
-    asyncio.run_coroutine_threadsafe(
-        manager.send_personal_message(payload, elder_id),
-        _main_loop,
-    )
+    schedule_coro(manager.send_personal_message(payload, elder_id))
 
 
 def check_medications() -> None:

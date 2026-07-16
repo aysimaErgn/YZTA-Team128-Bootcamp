@@ -46,7 +46,7 @@ const userInput = document.getElementById('userInput');
 const historySidebar = document.getElementById('historySidebar');
 const historyTodayList = document.getElementById('history-today');
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = (window.CONFIG && CONFIG.API_BASE_URL) || "http://127.0.0.1:8000/api";
 
 async function initKioskDemoMode() {
     const params = new URLSearchParams(window.location.search);
@@ -470,7 +470,8 @@ function initWebSocket() {
         medicationSocket.close();
     }
 
-    const wsUrl = `ws://127.0.0.1:8000/ws/medication/${elderId}`;
+    const wsBase = (window.CONFIG && CONFIG.WS_BASE_URL) || "ws://127.0.0.1:8000";
+    const wsUrl = `${wsBase}/ws/medication/${elderId}`;
     medicationSocket = new WebSocket(wsUrl);
 
     medicationSocket.onopen = () => console.log(`WebSocket bağlandı (elder: ${elderId})`);

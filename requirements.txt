@@ -11,3 +11,9 @@ numpy
 tf-keras==2.18.0
 apscheduler
 websockets
+langgraph
+langchain-core
+chromadb
+twilio
+# onnxruntime opsiyonel; Windows Anaconda'da DLL sorunu olabilir.
+# Chroma varsayılan embedding yerine hash embedding kullanılıyor.
