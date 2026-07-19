@@ -5,7 +5,12 @@ import re
 
 from groq import Groq
 
-VISION_MODEL = "llama-3.2-11b-vision-preview"
+# Groq: llama-3.2-*-vision-preview 14 Nisan 2025'te kapatıldı.
+# Güncel vision modeli: https://console.groq.com/docs/vision
+VISION_MODEL = os.environ.get(
+    "GROQ_VISION_MODEL",
+    "qwen/qwen3.6-27b",
+)
 
 RECOGNITION_PROMPT = (
     "Bu görüntüde bir ilaç kutusu, blister veya ilaç şişesi olabilir. "

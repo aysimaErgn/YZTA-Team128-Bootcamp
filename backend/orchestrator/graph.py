@@ -8,48 +8,79 @@ from typing import Any, Literal
 from langgraph.graph import END, START, StateGraph
 
 from orchestrator.memory.long_term import memory_backend_name, search_memories
+from orchestrator.memory.shared import (
+    hydrate_shared_from_supabase,
+    merge_shared_prefer_live,
+    recall_shared_context,
+)
 from orchestrator.memory.short_term import load_recent_messages
 from orchestrator.memory.structured import build_structured_context
 from orchestrator.nodes.companion import companion_node
 from orchestrator.nodes.escalation import escalation_node
 from orchestrator.nodes.health import health_node
-from orchestrator.router import resolve_intent
+from orchestrator.router import orchestrator_router, resolve_intent
 from orchestrator.state import AgentState
 
 _compiled_graph = None
 
 
 def load_context_node(state: AgentState) -> AgentState:
-    """Aşama 2: uzun süreli + yapılandırılmış bağlamı State'e yükler."""
+    """Uzun süreli + yapısal + ajanlar arası paylaşılan sağlık bağlamını yükler."""
     elder_id = state.get("elder_id") or ""
     conversation_id = state.get("conversation_id") or ""
     query = state.get("user_message") or ""
 
     memories = search_memories(elder_id, query, limit=5) if elder_id or query else []
     structured = build_structured_context(elder_id or None, conversation_id or None)
+    shared = hydrate_shared_from_supabase(conversation_id or None, elder_id or None)
+    cached = recall_shared_context(conversation_id or None)
+    if cached.get("shared_health_context"):
+        shared = merge_shared_prefer_live(shared, cached["shared_health_context"])
+
+    mood = (
+        cached.get("detected_mood")
+        or state.get("detected_mood")
+        or shared.get("detected_mood")
+        or "Nötr"
+    )
 
     return {
         **state,
         "retrieved_memories": memories,
         "structured_context": structured,
+        "shared_health_context": shared,
+        "detected_mood": mood,
     }
 
 
 def route_node(state: AgentState) -> AgentState:
-    result = resolve_intent(state.get("user_message", ""), state.get("chat_history"))
+    """Agent Task Routing: niyet analizi → intent / active_agent."""
+    shared = state.get("shared_health_context") or {}
+    hint_parts = []
+    if shared.get("last_pain_level") is not None:
+        hint_parts.append(f"son_ağrı={shared['last_pain_level']}")
+    if state.get("detected_mood"):
+        hint_parts.append(f"ruh_hali={state.get('detected_mood')}")
+    shared_hint = ", ".join(hint_parts) if hint_parts else None
+
+    result = resolve_intent(
+        state.get("user_message", ""),
+        state.get("chat_history"),
+        shared_hint=shared_hint,
+    )
+    next_node = result.get("next_node") or result.get("intent") or "companion"
     return {
         **state,
-        "intent": result["intent"],
+        "intent": next_node,
         "urgency": result.get("urgency", "low"),
         "escalation_reason": result.get("reason"),
+        "active_agent": next_node,
     }
 
 
 def pick_agent(state: AgentState) -> Literal["companion", "health", "escalation"]:
-    intent = state.get("intent") or "companion"
-    if intent in {"companion", "health", "escalation"}:
-        return intent  # type: ignore[return-value]
-    return "companion"
+    """Conditional edge: router kararındaki düğüme dallan."""
+    return orchestrator_router(state)
 
 
 def check_health_escalation(state: AgentState) -> Literal["escalation", "end"]:
@@ -131,7 +162,10 @@ def run_orchestrator(
         "escalation_needed": False,
         "escalation_reason": None,
         "routed_agent": "companion",
+        "active_agent": "",
         "memories_stored": [],
+        "shared_health_context": {},
+        "detected_mood": "Nötr",
     }
 
     if not initial["user_message"]:
@@ -155,6 +189,8 @@ def run_orchestrator(
         "memories_used": final_state.get("retrieved_memories") or [],
         "memories_stored": final_state.get("memories_stored") or [],
         "memory_backend": memory_backend_name(),
+        "detected_mood": final_state.get("detected_mood"),
+        "shared_health_context": final_state.get("shared_health_context") or {},
     }
 
 

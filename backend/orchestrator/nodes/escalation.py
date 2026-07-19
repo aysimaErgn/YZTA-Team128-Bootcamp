@@ -73,8 +73,15 @@ def escalation_node(state: AgentState) -> AgentState:
         **state,
         "agent_response": reply,
         "routed_agent": "escalation",
+        "active_agent": "escalation",
         "escalation_needed": True,
         "urgency": urgency,
         "escalation_reason": reason,
         "sms_result": sms_result,
+        "detected_mood": state.get("detected_mood") or "Endişeli",
+        "shared_health_context": {
+            **(state.get("shared_health_context") or {}),
+            "is_danger": True,
+            "source": "escalation_agent",
+        },
     }

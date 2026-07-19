@@ -2,7 +2,7 @@ from typing import Any, TypedDict
 
 
 class AgentState(TypedDict, total=False):
-    """Orkestratör grafiği boyunca paylaşılan kısa süreli durum (Aşama 2)."""
+    """Orkestratör grafiği — ajanlar arası paylaşılan merkezi eyalet."""
 
     elder_id: str
     conversation_id: str
@@ -18,7 +18,11 @@ class AgentState(TypedDict, total=False):
     escalation_needed: bool
     escalation_reason: str | None
     routed_agent: str
+    active_agent: str
     memories_stored: list[str]
     health_decision: dict[str, Any]
     health_tool_results: list[str]
     sms_result: dict[str, Any]
+    # --- Ajanlar arası paylaşılan veri ---
+    shared_health_context: dict[str, Any]
+    detected_mood: str

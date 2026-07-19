@@ -1,4 +1,4 @@
-"""Refakat Ajanı — kısa + uzun süreli ortak hafızayı kullanır."""
+"""Refakat Ajanı — uzun hafıza + ajanlar arası paylaşılan sağlık bağlamını kullanır."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from orchestrator.memory.long_term import (
     extract_and_store_memories,
     format_memories_for_prompt,
 )
+from orchestrator.memory.shared import format_shared_health_for_prompt
 from orchestrator.memory.structured import format_structured_for_prompt
 from orchestrator.prompts import COMPANION_SYSTEM
 from orchestrator.state import AgentState
@@ -23,12 +24,15 @@ def companion_node(state: AgentState) -> AgentState:
     user_name = state.get("user_name") or "canım"
     memory_block = format_memories_for_prompt(state.get("retrieved_memories") or [])
     structured_block = format_structured_for_prompt(state.get("structured_context"))
+    shared_block = format_shared_health_for_prompt(state)
 
     system = (
         f"{COMPANION_SYSTEM} Karşındaki kişinin adı: {user_name}.\n"
         f"{memory_block}"
         f"{structured_block}"
-        "Hafızadaki bilgileri doğal kullan; uydurma. Tıbbi teşhis verme."
+        f"{shared_block}"
+        "Hafızadaki ve diğer ajanlardan gelen bilgileri doğal kullan; uydurma. "
+        "Tıbbi teşhis verme. Sağlık bağlamı varsa empatik ol, ama sohbeti buna kilitleme."
     )
 
     messages: list[dict] = [{"role": "system", "content": system}]
@@ -49,7 +53,21 @@ def companion_node(state: AgentState) -> AgentState:
         reply = (response.choices[0].message.content or "").strip()
     except Exception as error:
         print(f"[COMPANION] Hata: {error}")
-        reply = f"{user_name}, şu an seni duyuyorum. Birazdan tekrar konuşalım olur mu?"
+        mood = state.get("detected_mood") or "Nötr"
+        shared = state.get("shared_health_context") or {}
+        pain = shared.get("last_pain_level")
+        if pain is not None and int(pain) >= 1:
+            reply = (
+                f"{user_name}, bugün biraz zorlandığını hissediyorum. "
+                "İstersen yavaşça sohbet edelim; yanında olduğumu bil."
+            )
+        elif mood and mood not in {"Nötr", "Normal", "normal"}:
+            reply = (
+                f"{user_name}, halini merak ettim. "
+                "İstersen eski güzel bir anından konuşalım, ister sadece dinleyeyim."
+            )
+        else:
+            reply = f"{user_name}, şu an seni duyuyorum. Birazdan tekrar konuşalım olur mu?"
 
     stored = extract_and_store_memories(
         state.get("elder_id") or "",
@@ -60,6 +78,7 @@ def companion_node(state: AgentState) -> AgentState:
         **state,
         "agent_response": reply,
         "routed_agent": "companion",
+        "active_agent": "companion",
         "escalation_needed": False,
         "memories_stored": stored,
     }

@@ -18,20 +18,32 @@ ORCHESTRATOR_ENABLED=true
 | Kısa süreli | LangGraph `AgentState` + Supabase `messages` | Son mesajlar, intent, bayraklar |
 | Uzun süreli | JSON (varsayılan) / **Chroma** (`MEMORY_USE_CHROMA=true`) | İlgi alanları, alışkanlıklar |
 | Yapısal | Supabase | Profil, bugünkü ilaçlar, check-in |
+| **Ajanlar arası** | `shared_health_context` + `detected_mood` | Sağlık → Refakat/Eskalasyon paylaşımı |
 
-Veri klasörü (gitignore): `orchestrator/memory/data/`
+`load_context` son check-in’leri Supabase’den okuyup State’e enjekte eder.
+Sağlık ajanı turunda `shared_health_context` güncellenir; refakat ajanı prompt’ta okur.
 
 ## Akış
 
 ```
 /api/text-chat | voice
-  → load_context (anı + ilaç/check-in)
-  → router (intent)
+  → load_context (anı + ilaç/check-in + shared health)
+  → router (Agent Task Routing: kural → LLM JSON/Pydantic → companion|health|escalation)
   → companion | health | escalation
-  → health: tool (ilaç/check-in) + anomali kontrolü
+  → health: tool + anomali
        └─ escalation_needed → escalation (PR-2)
-  → (companion/health) yeni anı yazabilir
 ```
+
+## Agent Task Routing
+
+| Sıra | Mekanizma | Örnek |
+|------|-----------|--------|
+| 1 | Kural (acil) | “Düştüm kalkamıyorum” → `escalation` |
+| 2 | Kural (sağlık) | “İlacımı içtim” → `health` |
+| 3 | Groq JSON → `RouterDecision` | “Eski günleri anlat” → `companion` |
+| 4 | Fail-safe | API hatası → `companion` |
+
+`route_node` → `intent` + `active_agent`; `pick_agent` / `orchestrator_router` conditional edge.
 
 ## PR-2 — Sağlık araçları ve eşik
 
@@ -98,8 +110,10 @@ Telefon: `users.family_phone` (+ isteğe bağlı `family_sms_enabled`).
 ```bash
 cd backend
 python tests/test_orchestrator_router.py
+python tests/test_agent_routing.py
 python tests/test_orchestrator_memory.py
 python tests/test_orchestrator_health_pr2.py
 python tests/test_family_websocket_pr3a.py
 python tests/test_sms_escalation_pr3b.py
+python tests/test_shared_agent_context.py
 ```

@@ -1,18 +1,42 @@
-"""Intent yönlendirme — kural tabanlı acil durum + LLM sınıflandırma."""
+"""Agent Task Routing — kural + Groq JSON / Pydantic karar + fail-safe companion."""
 
 from __future__ import annotations
 
 import json
 import os
 import re
-from typing import Any
+from typing import Any, Literal
 
 from groq import Groq
+from pydantic import BaseModel, Field, ValidationError
 
 from orchestrator.prompts import ROUTER_SYSTEM
 
+NextNode = Literal["companion", "health", "escalation"]
+Urgency = Literal["low", "medium", "high"]
+
+
+class RouterDecision(BaseModel):
+    """Orchestrator yönlendirme kararı (structured output)."""
+
+    next_node: NextNode = Field(
+        description=(
+            "Gidilecek ajan: companion=sohbet, health=ilaç/semptom/check-in, "
+            "escalation=acil risk (düşme, nefes, bayılma)."
+        )
+    )
+    urgency: Urgency = Field(default="low", description="Aciliyet seviyesi.")
+    reason: str = Field(default="", description="Yönlendirme gerekçesi.")
+
+    @property
+    def intent(self) -> str:
+        """Geriye uyum: graph/state 'intent' alanını kullanır."""
+        return self.next_node
+
+
 URGENT_PATTERNS = [
     r"d[uü][sş]t[uü]m",
+    r"d[uü][sş]mek\s*[uü]zere",
     r"kalkam[ıi]yorum",
     r"yard[ıi]m\s*et",
     r"nefes\s*alam[ıi]yorum",
@@ -22,6 +46,7 @@ URGENT_PATTERNS = [
     r"ambulans",
     r"kanama",
     r"bilincimi\s*kaybett",
+    r"ba[sş][ıi]m\s*[cç]ok\s*d[oö]n",
 ]
 
 HEALTH_PATTERNS = [
@@ -36,7 +61,7 @@ HEALTH_PATTERNS = [
     r"tansiyon",
     r"[sş]eker",
     r"vitamin",
-    r"nas[ıi]ls[ıi]n",  # check-in bağlamı için zayıf; LLM tamamlar
+    r"nas[ıi]ls[ıi]n",
 ]
 
 
@@ -45,7 +70,7 @@ def _normalize(text: str) -> str:
 
 
 def rule_based_intent(message: str) -> str | None:
-    """Acil durumda escalation, güçlü sağlık sinyalinde health döner; aksi None."""
+    """Acil → escalation; güçlü sağlık → health; aksi None (LLM'e bırak)."""
     text = _normalize(message)
     if not text:
         return None
@@ -55,7 +80,6 @@ def rule_based_intent(message: str) -> str | None:
             return "escalation"
 
     health_hits = sum(1 for pattern in HEALTH_PATTERNS if re.search(pattern, text, re.IGNORECASE))
-    # "nasılsın" tek başına sohbet olabilir; ilaç/ağrı ile birlikteyse health
     strong_health = any(
         re.search(p, text, re.IGNORECASE)
         for p in [r"ila[cç]", r"hap", r"doz", r"i[cç]tim", r"a[gğ]r[ıi]", r"tansiyon", r"semptom"]
@@ -73,7 +97,7 @@ def _get_groq_client() -> Groq | None:
     return Groq(api_key=api_key)
 
 
-def _parse_intent_json(raw: str) -> dict[str, str]:
+def _parse_router_decision(raw: str) -> RouterDecision:
     text = (raw or "").strip()
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?", "", text).strip()
@@ -86,20 +110,37 @@ def _parse_intent_json(raw: str) -> dict[str, str]:
             raise
         data = json.loads(match.group(0))
 
-    intent = str(data.get("intent", "companion")).strip().lower()
-    if intent not in {"companion", "health", "escalation"}:
-        intent = "companion"
-    urgency = str(data.get("urgency", "low")).strip().lower()
-    if urgency not in {"low", "medium", "high"}:
-        urgency = "low"
-    reason = str(data.get("reason", "")).strip()
-    return {"intent": intent, "urgency": urgency, "reason": reason}
+    # Eski şema: intent → next_node
+    if "next_node" not in data and "intent" in data:
+        data = {**data, "next_node": data.get("intent")}
+
+    raw_node = str(data.get("next_node") or "companion").strip().lower()
+    # LLM bazen şemayı aynen yapıştırır: "companion|health|escalation"
+    if "|" in raw_node or raw_node not in {"companion", "health", "escalation"}:
+        picked = None
+        for part in re.split(r"[|\s,/]+", raw_node):
+            if part in {"companion", "health", "escalation"}:
+                picked = part
+                break
+        raw_node = picked or "companion"
+    data["next_node"] = raw_node
+
+    return RouterDecision.model_validate(data)
 
 
-def llm_classify_intent(message: str, history: list[dict[str, Any]] | None = None) -> dict[str, str]:
+def llm_classify_intent(
+    message: str,
+    history: list[dict[str, Any]] | None = None,
+    *,
+    shared_hint: str | None = None,
+) -> RouterDecision:
     client = _get_groq_client()
     if not client:
-        return {"intent": "companion", "urgency": "low", "reason": "GROQ_API_KEY yok"}
+        return RouterDecision(
+            next_node="companion",
+            urgency="low",
+            reason="GROQ_API_KEY yok; varsayılan companion",
+        )
 
     history_lines = ""
     for item in (history or [])[-6:]:
@@ -111,6 +152,8 @@ def llm_classify_intent(message: str, history: list[dict[str, Any]] | None = Non
         f"Sohbet geçmişi:\n{history_lines or '(yok)'}\n\n"
         f"Son kullanıcı mesajı:\n{message}"
     )
+    if shared_hint:
+        user_payload += f"\n\nOrtak sağlık bağlamı (ipucu):\n{shared_hint}"
 
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
@@ -122,31 +165,64 @@ def llm_classify_intent(message: str, history: list[dict[str, Any]] | None = Non
         max_tokens=120,
     )
     raw = response.choices[0].message.content or ""
-    return _parse_intent_json(raw)
+    return _parse_router_decision(raw)
 
 
-def resolve_intent(message: str, history: list[dict[str, Any]] | None = None) -> dict[str, str]:
-    """Önce kural tabanlı acil/sağlık, sonra LLM; hata olursa companion."""
+def resolve_intent(
+    message: str,
+    history: list[dict[str, Any]] | None = None,
+    *,
+    shared_hint: str | None = None,
+) -> dict[str, str]:
+    """
+    Görev yönlendirme sırası:
+    1) Kural: acil → escalation, güçlü sağlık → health
+    2) LLM JSON → RouterDecision (Pydantic)
+    3) Fail-safe → companion
+    """
     ruled = rule_based_intent(message)
     if ruled == "escalation":
-        return {
-            "intent": "escalation",
-            "urgency": "high",
-            "reason": "Kural tabanlı acil durum kalıbı",
-        }
-    if ruled == "health":
-        return {
-            "intent": "health",
-            "urgency": "medium",
-            "reason": "Kural tabanlı sağlık/ilaç kalıbı",
-        }
+        decision = RouterDecision(
+            next_node="escalation",
+            urgency="high",
+            reason="Kural tabanlı acil durum kalıbı",
+        )
+    elif ruled == "health":
+        decision = RouterDecision(
+            next_node="health",
+            urgency="medium",
+            reason="Kural tabanlı sağlık/ilaç kalıbı",
+        )
+    else:
+        try:
+            decision = llm_classify_intent(message, history, shared_hint=shared_hint)
+        except (Exception, ValidationError) as error:
+            print(f"[ORCHESTRATOR] Intent LLM hatası: {error}")
+            decision = RouterDecision(
+                next_node="companion",
+                urgency="low",
+                reason="Sınıflandırma başarısız, varsayılan refakat",
+            )
 
-    try:
-        return llm_classify_intent(message, history)
-    except Exception as error:
-        print(f"[ORCHESTRATOR] Intent LLM hatası: {error}")
-        return {
-            "intent": "companion",
-            "urgency": "low",
-            "reason": "Sınıflandırma başarısız, varsayılan refakat",
-        }
+    return {
+        "intent": decision.next_node,
+        "next_node": decision.next_node,
+        "urgency": decision.urgency,
+        "reason": decision.reason,
+    }
+
+
+def orchestrator_router(state: dict[str, Any]) -> NextNode:
+    """
+    LangGraph conditional edge için: sonraki düğüm adını döner.
+    (route_node State'i doldurduktan sonra pick_agent ile de kullanılır.)
+    """
+    intent = (state.get("intent") or "").strip().lower()
+    if intent in {"companion", "health", "escalation"}:
+        return intent  # type: ignore[return-value]
+
+    result = resolve_intent(
+        state.get("user_message") or state.get("user_input") or "",
+        state.get("chat_history"),
+    )
+    return result["next_node"]  # type: ignore[return-value]

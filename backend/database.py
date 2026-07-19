@@ -24,16 +24,19 @@ def add_elder(full_name, phone, city, preferred_language="tr"):
     return response.data
 
 # --- TRELLO GÖREVİ 2: SOHBET GEÇMİŞİ TUTULMASI ---
-def save_message(conversation_id: str, role: str, content: str, user_id: str = None):
+def save_message(conversation_id: str, role: str, content: str, user_id: str = None, elder_id: str = None):
     try:
         # 1. Oturum kontrolü
         conv_check = supabase.table("conversations").select("id").eq("id", conversation_id).execute()
         
-        # 2. Eğer oturum yoksa sadece ID ile oluştur (title sütununu zorlamıyoruz)
+        # 2. Eğer oturum yoksa oluştur (elder_id NOT NULL olabilir)
         if not conv_check.data:
-            supabase.table("conversations").insert({
-                "id": conversation_id
-            }).execute()
+            row = {"id": conversation_id}
+            if elder_id:
+                row["elder_id"] = elder_id
+            elif user_id:
+                row["elder_id"] = user_id
+            supabase.table("conversations").insert(row).execute()
             print(f"[OTURUM OLUŞTURULDU] {conversation_id} aktif.")
 
         # 3. Mesajı kaydet (user_id varsa, mesajı gerçek kayıtlı kullanıcıya bağlıyoruz)
@@ -61,16 +64,17 @@ def get_conversation_history(conversation_id):
     return response.data
 
 # --- TRELLO GÖREVİ 3: GÜNLÜK DURUM (CHECK-IN) KAYITLARININ TUTULMASI ---
-def save_checkin(conversation_id: str, mood: str):
+def save_checkin(conversation_id: str, mood: str, elder_id: str | None = None):
     try:
         # 1. Oturum kontrolü
         conv_check = supabase.table("conversations").select("id").eq("id", conversation_id).execute()
         
-        # 2. Eğer oturum yoksa sadece ID ile oluştur
+        # 2. Eğer oturum yoksa oluştur — elder_id zorunlu olabilir
         if not conv_check.data:
-            supabase.table("conversations").insert({
-                "id": conversation_id
-            }).execute()
+            row = {"id": conversation_id}
+            if elder_id:
+                row["elder_id"] = elder_id
+            supabase.table("conversations").insert(row).execute()
             print(f"[OTURUM OLUŞTURULDU] Check-in için {conversation_id} aktif.")
 
         # 3. Durumu kaydet

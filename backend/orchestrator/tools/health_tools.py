@@ -105,6 +105,7 @@ def record_daily_checkin(
     mood: str,
     pain_level: int | None = None,
     notes: str | None = None,
+    elder_id: str | None = None,
 ) -> dict[str, Any]:
     """Günlük check-in kaydı — mood alanına ağrı/not özeti eklenir."""
     if not conversation_id:
@@ -119,7 +120,11 @@ def record_daily_checkin(
     combined_mood = " | ".join(parts)
 
     try:
-        save_checkin(conversation_id=conversation_id, mood=combined_mood)
+        save_checkin(
+            conversation_id=conversation_id,
+            mood=combined_mood,
+            elder_id=elder_id or None,
+        )
         return {
             "ok": True,
             "message": f"Check-in kaydedildi ({combined_mood}).",
