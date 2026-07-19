@@ -1,0 +1,52 @@
+# Render Blueprint — Yanımda Al API (PR-3c)
+# Dashboard: New → Blueprint → bu repo
+# Ortam değişkenlerini Render UI'dan .env.example'a göre ekleyin.
+
+services:
+  - type: web
+    name: yanimda-al-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r ../requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /docs
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: ORCHESTRATOR_ENABLED
+        value: "true"
+      - key: MEMORY_USE_CHROMA
+        value: "false"
+      - key: HEALTH_PAIN_ESCALATION_THRESHOLD
+        value: "7"
+      - key: SMS_PAIN_ESCALATION_THRESHOLD
+        value: "9"
+      - key: FAMILY_SMS_ENABLED
+        value: "false"
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+
+  - type: web
+    name: yanimda-al-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: echo "static frontend — no build"
+    staticPublishPath: .
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=300

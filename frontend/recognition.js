@@ -2,7 +2,7 @@
  * İlaç kutusu tanıma modülü — kamera + /api/medication/recognize
  */
 window.MedicationRecognition = (() => {
-    const API_BASE_URL = "http://127.0.0.1:8000/api";
+    const API_BASE_URL = (window.CONFIG && CONFIG.API_BASE_URL) || "http://127.0.0.1:8000/api";
     const state = {
         medId: null,
         scheduleId: null,

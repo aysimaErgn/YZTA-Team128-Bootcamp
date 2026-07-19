@@ -202,7 +202,7 @@ https://trello.com/invite/b/6a3d3aede057f19cb52a71e2/ATTIc79c0a42c416fbe1b7ca320
 * [ ] Test Süreçleri
 * [ ] Demo Videosu
 * [ ] Sunum Hazırlığı
-* [ ] Deploy
+* [x] Deploy (PR-3c: config.js + render.yaml + DEPLOY.md — canlı URL'yi Render'da bağlayın)
 
 ---
 

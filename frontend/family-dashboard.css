@@ -187,3 +187,63 @@
     clear: both;
     display: table;
 }
+
+/* PR-3a — Acil durum banner */
+.critical-alert-banner {
+    margin-bottom: 24px;
+    border-radius: 12px;
+    background: #7F1D1D;
+    color: #FEF2F2;
+    box-shadow: 0 8px 24px rgba(127, 29, 29, 0.35);
+    animation: critical-pulse 1.4s ease-in-out infinite;
+}
+
+.critical-alert-banner[hidden] {
+    display: none !important;
+}
+
+.critical-alert-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 22px;
+}
+
+.critical-alert-text strong {
+    display: block;
+    font-size: 18px;
+    letter-spacing: 0.02em;
+    margin-bottom: 6px;
+}
+
+.critical-alert-text p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.45;
+    color: #FECACA;
+}
+
+.critical-alert-dismiss {
+    flex-shrink: 0;
+    border: 0;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #FEF2F2;
+    color: #7F1D1D;
+}
+
+.critical-alert-dismiss:hover {
+    background: #FFFFFF;
+}
+
+@keyframes critical-pulse {
+    0%, 100% { box-shadow: 0 8px 24px rgba(127, 29, 29, 0.35); }
+    50% { box-shadow: 0 8px 32px rgba(220, 38, 38, 0.55); }
+}
+
+#live-connection.ws-offline i {
+    color: #F59E0B !important;
+}

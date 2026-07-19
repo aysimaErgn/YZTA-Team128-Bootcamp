@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = (window.CONFIG && CONFIG.API_BASE_URL) || "http://127.0.0.1:8000/api";
 let localStream = null;
 let registerStream = null;
 let registeredBase64Image = null; // Kayıt esnasında çekilen fotoğrafı burada saklayacağız
@@ -125,8 +125,7 @@ async function loginWithCredentials() {
     }
 
     try {
-        // Doğrudan localhost portuna yönlendirerek yönlendirme hatalarını bypass ediyoruz
-        const response = await fetch(`http://127.0.0.1:8000/api/auth/credentials-login`, {
+        const response = await fetch(`${API_BASE_URL}/auth/credentials-login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

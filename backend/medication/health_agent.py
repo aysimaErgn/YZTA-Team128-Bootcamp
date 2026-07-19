@@ -133,3 +133,17 @@ def _create_escalation_alert(
         ).execute()
     except Exception as error:
         print(f"[ESKALASYON] Alert kaydı başarısız: {error}")
+
+    if severity == "high":
+        try:
+            from routers.websocket import notify_family_critical
+
+            notify_family_critical(
+                elder_id,
+                description=description,
+                severity=severity,
+                alert_type=alert_type,
+                urgency="high",
+            )
+        except Exception as error:
+            print(f"[ESKALASYON] Aile WS bildirimi atlandı: {error}")
