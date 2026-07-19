@@ -158,18 +158,23 @@ async def text_chat(data: TextMessageModel):
                 role="user",
                 content=data.message,
                 user_id=data.user_id,
+                elder_id=elder_id,
             )
             save_message(
                 conversation_id=data.conversation_id,
                 role="assistant",
                 content=ai_response,
                 user_id=data.user_id,
+                elder_id=elder_id,
             )
             return {
                 "ai_response": ai_response,
                 "intent": result.get("intent"),
                 "routed_agent": result.get("routed_agent"),
                 "escalation": result.get("escalation", False),
+                "urgency": result.get("urgency"),
+                "detected_mood": result.get("detected_mood"),
+                "shared_health_context": result.get("shared_health_context") or {},
             }
 
         ai_response = _legacy_text_reply(data.message, data.user_name)
@@ -249,6 +254,9 @@ async def voice_chat(
                 "intent": result.get("intent"),
                 "routed_agent": result.get("routed_agent"),
                 "escalation": result.get("escalation", False),
+                "urgency": result.get("urgency"),
+                "detected_mood": result.get("detected_mood"),
+                "shared_health_context": result.get("shared_health_context") or {},
             }
 
         ai_response = _legacy_text_reply(user_text, user_name)

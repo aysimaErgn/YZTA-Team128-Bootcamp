@@ -110,4 +110,13 @@ def format_structured_for_prompt(context: dict[str, Any] | None) -> str:
     else:
         parts.append("Bugünkü check-in: henüz yok.")
 
+    notes = (profile.get("notes") or "").strip()
+    if notes and not notes.lower().startswith("users tablosu"):
+        parts.append(
+            "Kayıtlı sağlık / kronik notlar (ilaç önermek için KULLANMA; "
+            f"yalnızca dinlerken dikkate al): {notes[:300]}"
+        )
+    else:
+        parts.append("Kayıtlı kronik hastalık notu: yok veya yüklenemedi.")
+
     return "Yapılandırılmış bağlam (Supabase):\n" + "\n".join(f"- {p}" for p in parts) + "\n"
