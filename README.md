@@ -118,7 +118,8 @@ Yanımda AI ise kullanıcıyla aktif iletişim kuran, onu tanıyan ve yalnızca 
 
 ## Sistem Mimarisi
 
-<img width="1255" height="652" alt="image" src="https://github.com/user-attachments/assets/d7f7d93c-ddde-47fc-be78-c10a1f10de89" />
+<img width="1187" height="770" alt="56f54d21-ce5b-422a-97e9-06dd667aa55d" src="https://github.com/user-attachments/assets/cbdbc147-6bb5-4b8c-b5b5-21fdeb335f17" />
+
 
 ## Teknoloji Yığını
 
