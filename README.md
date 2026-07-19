@@ -118,25 +118,7 @@ Yanımda AI ise kullanıcıyla aktif iletişim kuran, onu tanıyan ve yalnızca 
 
 ## Sistem Mimarisi
 
-```text
-Yaşlı Kullanıcı
-       │
-       ▼
-  Orkestratör
-       │
- ┌─────┼─────┐
- ▼     ▼     ▼
-Refakat Sağlık Eskalasyon
-Ajanı  Ajanı   Ajanı
-       │
-       ▼
- Hafıza Katmanı
-       │
-       ▼
-  Aile Paneli
-```
-
----
+<img width="1255" height="652" alt="image" src="https://github.com/user-attachments/assets/d7f7d93c-ddde-47fc-be78-c10a1f10de89" />
 
 ## Teknoloji Yığını
 
@@ -202,7 +184,6 @@ https://trello.com/invite/b/6a3d3aede057f19cb52a71e2/ATTIc79c0a42c416fbe1b7ca320
 * [ ] Test Süreçleri
 * [ ] Demo Videosu
 * [ ] Sunum Hazırlığı
-* [x] Deploy (PR-3c: config.js + render.yaml + DEPLOY.md — canlı URL'yi Render'da bağlayın)
 
 ---
 
@@ -221,6 +202,7 @@ Proje başlangıç aşamasında olduğundan ekibin geçmiş deneyimleri ve ilgi 
 
 ## Daily Scrum Notları
 Görüşmeler Whatsapp üzerinden yapılmıştır. Görseller linkteki klasörde yer almaktadır.
+
 https://drive.google.com/drive/folders/1RujrkABXAeZNB_iCODFCfIC18ArKqjYd?usp=sharing
 
 ### Sprint Board Durumu
@@ -252,11 +234,49 @@ Bu sprintte projenin temel MVP'si üretilmiştir.
 - Aile Paneli LLM Kurulumu (Yapay Zeka Özeti)
 Görevleri yerine getirilmiştir. Proje şuan ayağa kaldırılabilir durumdadır. Projenin güncel durumu tüm takım tarafından değerlendirilmiştir.
 
-### Sprint Retrospektive
+### Sprint Retrospective
 
 İlk sprint boyunca ekip arası iletişim sağlanmıştır. Proje ekibinde teknik altyapısı güçlü olmayan kişilerin öğrenme ve adaptasyon süreci olmuştur. Ayrıca ilk sprintin kapsamı geniş olduğundan görevler bazen beklenenden uzun sürede tamamlanmış, belirli sorunlarla karşılaşılmış ve bunlar ekip yardımlaşmasıyla çözüme kavuşturulmuştur. Karşılaşılan zorluklar göz önünde bulundurulduğunda ilk sprint oldukça başarılı bir şekilde bitmiştir. Bu süreç için belirlenen hedeflerin hepsi tamamlanmıştır. Bir sonraki sprintte hedef, geliştirme sürecinin daha verimli ve daha koordine bir şekilde ilerlemesini sağlamaktır. 
 
+# Sprint 2
+
+## Backlog Dağıtma Mantığı
+
+Bu sprintte backlog dağıtımı takım müsaitliğine göre planlanmıştır.
+
+## Daily Scrum Notları
+
+Bu süreçte bir kere meet üzerinden ekip üyesine projenin güncel hali gösterilmiştir. Geri kalan tüm görüşmeler Whatsapp üzerinden yapılmıştır. Görseller aşağıdaki linkte yer almaktadır.
+
+https://drive.google.com/drive/folders/1Cz2Vt9SwE865E1GU4VaxOa3o5MgYwCnc?usp=sharing
 
 
+### Sprint Board Durumu
+
+<img width="1502" height="727" alt="image" src="https://github.com/user-attachments/assets/612c3567-de60-4d1e-a529-d74390f70dd5" />
+
+### Ürün Durumu
+
+#### Yaşlı Paneli İlaç Sekmesi
+
+<img width="1917" height="1017" alt="image" src="https://github.com/user-attachments/assets/f485591c-17ca-48dc-828a-6e942d9db658" />
+
+#### Aile Paneli İlaç Sekmesi
+
+<img width="1912" height="1012" alt="image" src="https://github.com/user-attachments/assets/4b3d62fc-ad6c-496b-bc0b-35f9a24bf06d" />
+
+#### Sprint Review
+
+Bu sprintte agent yapısı oluşturulmuştur. Ayrıca İlaç Sekmesi çalışır hale getirilmiştir.
+
+- İlaç Hatırlatma Sistemi
+- İlaç Tanıma Modülü
+- Agent Orchestrasyonu
+
+Görevleri yerine getirilmiştir. Bu sprint için yapılması planlanan fakat tamamamlanamayan iki görev 3. sprinte aktarılmıştır.
+
+### Sprint Retrospective
+
+Bu sprintte proje, planlanan ilerleme hızına tam olarak ulaşamamıştır. Buna rağmen 2. sprint için planlanan görevlerin çoğunluğu tamamlanmıştır. Tamamlanamayan 2 task bir sonraki sprinte aktarılmıştır. Sonraki sprint bootcamp sürecinin son sprinti olup projenin nihayete erdirilmesi kararlaştırılmıştır.
 
 
