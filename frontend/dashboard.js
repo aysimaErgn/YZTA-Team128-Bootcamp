@@ -229,7 +229,18 @@ function startAlertPolling(elderProfileId) {
 }
 
 async function startFamilyRealtime() {
-    const elderProfileId = localStorage.getItem('elder_id') || await syncElderForFamily();
+    const elderlyId = localStorage.getItem('elderly_id');
+    const boundUserId = localStorage.getItem('elder_bound_user_id');
+    let elderProfileId = null;
+    if (
+        localStorage.getItem('elder_id') &&
+        elderlyId &&
+        boundUserId === elderlyId
+    ) {
+        elderProfileId = localStorage.getItem('elder_id');
+    } else {
+        elderProfileId = await syncElderForFamily();
+    }
     if (!elderProfileId) {
         console.warn('elder_id yok; aile WS başlatılamadı.');
         return;
@@ -252,6 +263,7 @@ async function syncElderForFamily() {
         const data = await response.json();
         if (response.ok && data.elder?.id) {
             localStorage.setItem('elder_id', data.elder.id);
+            localStorage.setItem('elder_bound_user_id', elderlyId);
             return data.elder.id;
         }
     } catch (error) {

@@ -24,12 +24,21 @@ import json
 import base64
 import asyncio
 
-from database import save_message, create_client, Client, save_checkin, get_checkin_history, get_today_checkin_status
+from database import (
+    save_message,
+    create_client,
+    Client,
+    save_checkin,
+    get_checkin_history,
+    get_today_checkin_status,
+    list_conversations_for_elder,
+)
 from medication.router import router as medication_router
 from medication.crud_router import router as medication_crud_router
 from routers.websocket import router as websocket_router
 from routers.health import router as health_router
 from medication.scheduler import start_scheduler, set_event_loop
+from services import auth_store
 
 app = FastAPI(title="Yanımda Al - Yaşlı Refakatçi API")
 
@@ -47,7 +56,7 @@ def _cors_origins() -> list[str]:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins(),
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -69,10 +78,13 @@ class TextMessageModel(BaseModel):
     message: str
     user_id: str | None = None    # Bu mesajın hangi kayıtlı kullanıcıya ait olduğu
     user_name: str | None = None  # AI'ın kişiye doğru isimle hitap edebilmesi için
+    elder_id: str | None = None   # Sohbeti yaşlı profiline bağlamak için
 
 class CheckinModel(BaseModel):
     conversation_id: str  # Sağlık durumu kontrolü de bu oturuma bağlanacak
     mood: str
+    elder_id: str | None = None
+    user_id: str | None = None
 
 class MedModel(BaseModel):
     med_id: str
@@ -144,7 +156,7 @@ async def text_chat(data: TextMessageModel):
         from orchestrator.graph import is_orchestrator_enabled, run_orchestrator
 
         if is_orchestrator_enabled():
-            elder_id = _resolve_elder_id_for_chat(data.user_id, data.user_name)
+            elder_id = data.elder_id or _resolve_elder_id_for_chat(data.user_id, data.user_name)
             result = run_orchestrator(
                 message=data.message,
                 conversation_id=data.conversation_id,
@@ -172,9 +184,22 @@ async def text_chat(data: TextMessageModel):
                 "escalation": result.get("escalation", False),
             }
 
+        elder_id = data.elder_id or _resolve_elder_id_for_chat(data.user_id, data.user_name)
         ai_response = _legacy_text_reply(data.message, data.user_name)
-        save_message(conversation_id=data.conversation_id, role="user", content=data.message, user_id=data.user_id)
-        save_message(conversation_id=data.conversation_id, role="assistant", content=ai_response, user_id=data.user_id)
+        save_message(
+            conversation_id=data.conversation_id,
+            role="user",
+            content=data.message,
+            user_id=data.user_id,
+            elder_id=elder_id,
+        )
+        save_message(
+            conversation_id=data.conversation_id,
+            role="assistant",
+            content=ai_response,
+            user_id=data.user_id,
+            elder_id=elder_id,
+        )
         return {"ai_response": ai_response}
     except Exception as e:
         return {"ai_response": f"SİSTEM HATASI BULUNDU: {str(e)}"}
@@ -187,7 +212,8 @@ async def voice_chat(
     file: UploadFile = File(...),
     conversation_id: str = Form(...),  # Frontend'den form-data içinde geliyor
     user_id: str = Form(None),
-    user_name: str = Form(None)
+    user_name: str = Form(None),
+    elder_id: str = Form(None),
 ):
     display_name = user_name or "canım"
     try:
@@ -229,17 +255,29 @@ async def voice_chat(
         from orchestrator.graph import is_orchestrator_enabled, run_orchestrator
 
         if is_orchestrator_enabled():
-            elder_id = _resolve_elder_id_for_chat(user_id, user_name)
+            resolved_elder_id = elder_id or _resolve_elder_id_for_chat(user_id, user_name)
             result = run_orchestrator(
                 message=user_text,
                 conversation_id=conversation_id,
-                elder_id=elder_id,
+                elder_id=resolved_elder_id,
                 user_name=user_name,
                 user_id=user_id,
             )
             ai_response = result["ai_response"]
-            save_message(conversation_id=conversation_id, role="user", content=user_text, user_id=user_id)
-            save_message(conversation_id=conversation_id, role="assistant", content=ai_response, user_id=user_id)
+            save_message(
+                conversation_id=conversation_id,
+                role="user",
+                content=user_text,
+                user_id=user_id,
+                elder_id=resolved_elder_id,
+            )
+            save_message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=ai_response,
+                user_id=user_id,
+                elder_id=resolved_elder_id,
+            )
             return {
                 "user_transcription": user_text,
                 "text": user_text,
@@ -252,8 +290,21 @@ async def voice_chat(
             }
 
         ai_response = _legacy_text_reply(user_text, user_name)
-        save_message(conversation_id=conversation_id, role="user", content=user_text, user_id=user_id)
-        save_message(conversation_id=conversation_id, role="assistant", content=ai_response, user_id=user_id)
+        resolved_elder_id = elder_id or _resolve_elder_id_for_chat(user_id, user_name)
+        save_message(
+            conversation_id=conversation_id,
+            role="user",
+            content=user_text,
+            user_id=user_id,
+            elder_id=resolved_elder_id,
+        )
+        save_message(
+            conversation_id=conversation_id,
+            role="assistant",
+            content=ai_response,
+            user_id=user_id,
+            elder_id=resolved_elder_id,
+        )
 
     except Exception as e:
         user_text = "Ses dosyası işlenirken teknik hata oluştu."
@@ -268,31 +319,27 @@ async def voice_chat(
     }
 
 # ==========================================
-# 3. SOHBET LİSTESİNİ GETİR (GÜN GÜN AYIRIR)
+# 3. SOHBET LİSTESİNİ GETİR (KULLANICIYA ÖZEL)
 # ==========================================
 @app.get("/api/conversations")
-async def get_conversations():
+async def get_conversations(
+    elder_id: str | None = None,
+    user_id: str | None = None,
+):
+    """
+    Sohbet geçmişi yalnızca ilgili yaşlıya (elder_id) aittir.
+    user_id verilirse users.elder_id üzerinden çözülür.
+    Filtre yoksa boş liste döner (tüm kullanıcıların sohbetini sızdırmaz).
+    """
     try:
-        response = supabase.table("messages").select("conversation_id, created_at").eq("role", "user").order("created_at", desc=True).execute()
-        seen = set()
-        unique_conversations = []
-        for row in response.data:
-            c_id = row["conversation_id"]
-            if c_id not in seen:
-                seen.add(c_id)
-                try:
-                    raw_date = row["created_at"].split("T")[0]
-                    date_obj = datetime.strptime(raw_date, "%Y-%m-%d")
-                    formatted_date = date_obj.strftime("%d.%m.%Y")
-                except:
-                    formatted_date = "Bilinmeyen Tarih"
-
-                unique_conversations.append({
-                    "conversation_id": c_id, 
-                    "title": f"Sohbet - {formatted_date}"
-                })
-        return unique_conversations
+        resolved_elder_id = elder_id
+        if not resolved_elder_id and user_id:
+            resolved_elder_id = _resolve_elder_id_for_chat(user_id, None)
+        if not resolved_elder_id:
+            return []
+        return list_conversations_for_elder(resolved_elder_id)
     except Exception as e:
+        print("!!! CONVERSATIONS HATASI:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/conversations/{conversation_id}")
@@ -309,9 +356,18 @@ async def get_chat_history(conversation_id: str):
 @app.post("/api/checkin")
 async def daily_checkin(data: CheckinModel):
     try:
-        save_checkin(conversation_id=data.conversation_id, mood=data.mood)
-        return {"status": "success"}
+        elder_id = data.elder_id or _resolve_elder_id_for_chat(
+            data.user_id or data.conversation_id,
+            None,
+        )
+        save_checkin(
+            conversation_id=data.conversation_id,
+            mood=data.mood,
+            elder_id=elder_id,
+        )
+        return {"status": "success", "mood": data.mood}
     except Exception as e:
+        print("!!! CHECKIN HATASI:", str(e))
         raise HTTPException(status_code=500, detail="Check-in kaydedilemedi.")
 
 @app.get("/api/checkin/history")
@@ -397,46 +453,183 @@ async def generate_ai_summary(data: SummaryRequestModel):
 # ==========================================
 # 5. YÜZ TANIMA SİSTEMİ (DEEPFACE ENTEGRELİ)
 # ==========================================
+FACE_ANALYSIS_TIMEOUT_SEC = 90
+FACE_MATCH_THRESHOLD = 0.68
+VGG_FACE_WEIGHTS_EXPECTED_BYTES = 500_000_000  # ~580MB; eksik dosya bozuk sayılır
+
+
+def _vgg_weights_path() -> str:
+    home = os.path.expanduser("~")
+    return os.path.join(home, ".deepface", "weights", "vgg_face_weights.h5")
+
+
+def _ensure_vgg_face_weights() -> None:
+    """Bozuk / yarım indirilmiş VGG-Face ağırlığını silip yeniden indirilmesini sağlar."""
+    path = _vgg_weights_path()
+    if not os.path.isfile(path):
+        return
+    size = os.path.getsize(path)
+    if size >= VGG_FACE_WEIGHTS_EXPECTED_BYTES:
+        return
+    print(
+        f"!!! Bozuk VGG-Face ağırlığı siliniyor ({size} bayt < {VGG_FACE_WEIGHTS_EXPECTED_BYTES}). "
+        "Sonraki istekte yeniden indirilecek (~580MB)."
+    )
+    try:
+        os.remove(path)
+    except OSError as err:
+        print("!!! Ağırlık silinemedi:", err)
+
+
+def _extract_face_embedding(rgb_image):
+    """Yüz tespiti + hizalama ile embedding; başarısızsa skip fallback."""
+    _ensure_vgg_face_weights()
+    DeepFace = _get_deepface()
+    try:
+        embeddings_data = DeepFace.represent(
+            img_path=rgb_image,
+            model_name="VGG-Face",
+            enforce_detection=False,
+            detector_backend="opencv",
+            align=True,
+        )
+    except Exception as detect_error:
+        print("-> opencv tespit başarısız, skip fallback:", detect_error)
+        embeddings_data = DeepFace.represent(
+            img_path=rgb_image,
+            model_name="VGG-Face",
+            enforce_detection=False,
+            detector_backend="skip",
+            align=False,
+        )
+    if not embeddings_data:
+        raise HTTPException(status_code=400, detail="Fotoğrafta yüz tespit edilemedi!")
+    return embeddings_data[0]["embedding"]
+
+
+def _as_embedding_list(face_vector) -> list:
+    """Tek vektör (eski) veya çok açılı liste/{angles/vectors} yapısını listeye çevirir."""
+    if face_vector is None:
+        return []
+    if isinstance(face_vector, list) and face_vector:
+        if isinstance(face_vector[0], (int, float)):
+            return [face_vector]
+        if isinstance(face_vector[0], list):
+            return [v for v in face_vector if isinstance(v, list) and v]
+    if isinstance(face_vector, dict):
+        out: list = []
+        for item in face_vector.get("vectors") or []:
+            if isinstance(item, list) and item and isinstance(item[0], (int, float)):
+                out.append(item)
+        angles = face_vector.get("angles") or {}
+        if isinstance(angles, dict):
+            for item in angles.values():
+                if isinstance(item, list) and item and isinstance(item[0], (int, float)):
+                    out.append(item)
+        return out
+    return []
+
+
+def _face_model_error_detail(error: Exception) -> str:
+    message = str(error)
+    if "vgg_face_weights" in message.lower() or "pre-trained weights" in message.lower():
+        return (
+            "Yüz modeli dosyası bozuk veya eksik. Backend konsolunda ağırlık yeniden indirilecek; "
+            "birkaç dakika bekleyip tekrar deneyin. (Ad+yaş ile de giriş yapabilirsiniz.)"
+        )
+    return "Yüz analizi başarısız oldu."
+
+
 @app.post("/api/auth/register-face")
 async def register_face(request: FaceAuthRequest):
     try:
         rgb_image = base64_to_image(request.image_data)
-        DeepFace = _get_deepface()
-        embeddings_data = DeepFace.represent(img_path=rgb_image, model_name="VGG-Face", enforce_detection=False, detector_backend="skip")
-        if not embeddings_data or len(embeddings_data) == 0:
-            raise HTTPException(status_code=400, detail="Fotoğrafta yüz tespit edilemedi!")
-            
-        elderly_face_vector = embeddings_data[0]["embedding"]
-        return {"success": True, "message": "Yüz imzası başarıyla çıkarıldı.", "face_vector": elderly_face_vector}
+        loop = asyncio.get_running_loop()
+        elderly_face_vector = await asyncio.wait_for(
+            loop.run_in_executor(None, _extract_face_embedding, rgb_image),
+            timeout=FACE_ANALYSIS_TIMEOUT_SEC,
+        )
+        return {
+            "success": True,
+            "message": "Yüz imzası başarıyla çıkarıldı.",
+            "face_vector": elderly_face_vector,
+        }
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="Yüz analizi zaman aşımına uğradı. Yüz olmadan kayıt olabilirsiniz.",
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         print("!!! REGISTER-FACE HATASI:", str(e))
-        if isinstance(e, HTTPException): raise e
-        raise HTTPException(status_code=400, detail="Yüz analizi başarısız oldu.")
+        raise HTTPException(status_code=400, detail=_face_model_error_detail(e))
 
 @app.post("/api/auth/face-login")
 async def face_login(request: FaceAuthRequest):
     try:
         current_rgb_image = base64_to_image(request.image_data)
+        loop = asyncio.get_running_loop()
+        login_face_encoding = await asyncio.wait_for(
+            loop.run_in_executor(None, _extract_face_embedding, current_rgb_image),
+            timeout=FACE_ANALYSIS_TIMEOUT_SEC,
+        )
         DeepFace = _get_deepface()
-        current_embeddings = DeepFace.represent(img_path=current_rgb_image, model_name="VGG-Face", enforce_detection=False, detector_backend="skip")
-        if not current_embeddings or len(current_embeddings) == 0:
-            raise HTTPException(status_code=400, detail="Yüz algılanamadı.")
-            
-        login_face_encoding = current_embeddings[0]["embedding"]
-        users_response = supabase.table("users").select("id, name, face_vector").not_.is_("face_vector", "null").execute()
-        
-        for user in users_response.data:
-            saved_face_vector = user["face_vector"]
-            if not saved_face_vector or len(saved_face_vector) != len(login_face_encoding):
+        best_user = None
+        best_overall = None
+        for user in auth_store.list_users_with_faces():
+            saved_vectors = _as_embedding_list(user.get("face_vector"))
+            if not saved_vectors:
                 continue
-            distance = DeepFace.verification.find_cosine_distance(login_face_encoding, saved_face_vector)
-            print(f"-> {user['name']} için ölçülen mesafe: {distance}")
-            if distance <= 0.68:
-                return {"success": True, "message": f"Giriş Başarılı. Hoş geldin {user['name']}", "user_id": user["id"], "name": user["name"]}
-        raise HTTPException(status_code=401, detail="Yüz tanınamadı!")
+            best_distance = None
+            for saved_face_vector in saved_vectors:
+                if len(saved_face_vector) != len(login_face_encoding):
+                    continue
+                distance = float(
+                    DeepFace.verification.find_cosine_distance(
+                        login_face_encoding, saved_face_vector
+                    )
+                )
+                if best_distance is None or distance < best_distance:
+                    best_distance = distance
+            if best_distance is None:
+                continue
+            print(f"-> {user['name']} için en iyi mesafe: {best_distance} ({len(saved_vectors)} açı)")
+            if best_overall is None or best_distance < best_overall:
+                best_overall = best_distance
+                best_user = user
+            if best_distance <= FACE_MATCH_THRESHOLD:
+                elder_id = user.get("elder_id")
+                if not elder_id:
+                    from medication.service import resolve_elder_for_user as resolve_elder
+                    elder = resolve_elder(user["id"], user.get("name") or "Yaşlı")
+                    elder_id = elder["id"]
+                return {
+                    "success": True,
+                    "message": f"Giriş Başarılı. Hoş geldin {user['name']}",
+                    "user_id": user["id"],
+                    "name": user["name"],
+                    "elder_id": elder_id,
+                }
+        detail = "Yüz tanınamadı!"
+        if best_overall is not None:
+            detail = (
+                f"Yüz tanınamadı (en yakın mesafe: {best_overall:.3f}, eşik: {FACE_MATCH_THRESHOLD}). "
+                "Daha iyi ışıkta tekrar deneyin veya telefon/e-posta ve şifre ile giriş yapın."
+            )
+        elif not auth_store.list_users_with_faces():
+            detail = "Kayıtlı yüz bulunamadı. Telefon veya e-posta ve şifre ile giriş yapabilirsiniz."
+        raise HTTPException(status_code=401, detail=detail)
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="Yüz analizi zaman aşımına uğradı. Tekrar deneyin.",
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         print("!!! FACE-LOGIN HATASI:", str(e))
-        raise HTTPException(status_code=400, detail="Giriş esnasında bir hata oluştu.")
+        raise HTTPException(status_code=400, detail=_face_model_error_detail(e))
 
 
 # ==========================================
@@ -444,7 +637,13 @@ async def face_login(request: FaceAuthRequest):
 # ==========================================
 
 class FamilyLoginModel(BaseModel):
-    phone: str
+    phone: str | None = None
+    email: str | None = None
+    password: str
+
+class ElderlyLoginModel(BaseModel):
+    phone: str | None = None
+    email: str | None = None
     password: str
 
 class FullRegisterModel(BaseModel):
@@ -454,30 +653,30 @@ class FullRegisterModel(BaseModel):
 @app.post("/api/auth/family-login")
 async def family_login(data: FamilyLoginModel):
     try:
-        # Supabase'den aile telefonuna göre kullanıcıyı arıyoruz
-        response = supabase.table("users").select("*").eq("family_phone", data.phone).execute()
-        
-        if not response.data:
-            raise HTTPException(status_code=404, detail="Bu telefon numarasına ait bir kayıt bulunamadı.")
-            
-        user = response.data[0]
-        
-        # Şifre kontrolü (Geliştirme aşaması için düz metin karşılaştırması)
-        if user.get("family_password") != data.password:
-            raise HTTPException(status_code=401, detail="Hatalı şifre girdiniz.")
-
-        # Frontend (authorization.js) tam olarak bu alan adlarını okuyor:
-        # family_name, elderly_id, elderly_name -> bunlar eksikti, elderly_id "undefined" geliyordu.
-        return {
-            "success": True,
-            "message": f"Hoş geldiniz, {user.get('family_name')}",
-            "family_name": user.get("family_name"),
-            "elderly_id": user.get("id"),
-            "elderly_name": user.get("name"),
-            "user_id": user.get("id")  # geriye dönük uyumluluk için bırakıldı
-        }
+        return auth_store.family_login(
+            phone=data.phone,
+            email=data.email,
+            password=data.password,
+        )
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, HTTPException): raise e
+        print("!!! FAMILY-LOGIN HATASI:", str(e))
+        raise HTTPException(status_code=500, detail="Giriş yapılırken veritabanı hatası oluştu.")
+
+
+@app.post("/api/auth/elderly-login")
+async def elderly_login(data: ElderlyLoginModel):
+    try:
+        return auth_store.elderly_login(
+            phone=data.phone,
+            email=data.email,
+            password=data.password,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print("!!! ELDERLY-LOGIN HATASI:", str(e))
         raise HTTPException(status_code=500, detail="Giriş yapılırken veritabanı hatası oluştu.")
 
 # ==========================================
@@ -585,20 +784,47 @@ async def generate_ai_summary(data: SummaryRequestModel):
 @app.post("/api/auth/register")
 async def register_user_and_family(data: FullRegisterModel):
     try:
-        # Frontend'den (authorization.js) gelen iç içe nesneleri düzleştirip Supabase tablosuna uygun hale getiriyoruz
-        flat_payload = {
-            "name": data.elderly.get("name"),
-            "age": data.elderly.get("age"),
-            "face_vector": data.elderly.get("face_vector"),  # DeepFace'den gelen 4096 boyutlu array
-            "family_name": data.family.get("name"),
-            "family_phone": data.family.get("phone"),
-            "family_password": data.family.get("password")
-        }
-        
-        # Supabase 'users' tablonuza tek satır olarak ekleme yapıyoruz
-        response = supabase.table("users").insert(flat_payload).execute()
-        return {"success": True, "message": "Kayıt işlemi başarıyla tamamlandı!"}
+        elderly = data.elderly or {}
+        family = data.family or {}
+        age_raw = elderly.get("age")
+        age = int(age_raw) if age_raw not in (None, "") else None
+        first = str(elderly.get("first_name") or "").strip()
+        last = str(elderly.get("last_name") or "").strip()
+        elderly_name = str(elderly.get("name") or "").strip() or f"{first} {last}".strip()
+        fam_first = str(family.get("first_name") or "").strip()
+        fam_last = str(family.get("last_name") or "").strip()
+        family_name = str(family.get("name") or "").strip() or f"{fam_first} {fam_last}".strip()
+        password = str(family.get("password") or "")
+        password_confirm = family.get("password_confirm")
+        if password_confirm is not None and str(password_confirm) != password:
+            raise HTTPException(status_code=400, detail="Aile şifreleri eşleşmiyor.")
+        elderly_password = str(elderly.get("password") or "")
+        elderly_password_confirm = elderly.get("password_confirm")
+        if elderly_password_confirm is not None and str(elderly_password_confirm) != elderly_password:
+            raise HTTPException(status_code=400, detail="Yaşlı şifreleri eşleşmiyor.")
+        return auth_store.register_elderly_and_family(
+            elderly_name=elderly_name,
+            elderly_age=age,
+            face_vector=elderly.get("face_vector"),
+            family_name=family_name,
+            family_phone=str(family.get("phone") or "") or None,
+            family_password=password,
+            elderly_first_name=first or None,
+            elderly_last_name=last or None,
+            elderly_birth_date=str(elderly.get("birth_date") or "") or None,
+            elderly_phone=str(elderly.get("phone") or "") or None,
+            elderly_email=str(elderly.get("email") or "") or None,
+            elderly_password=elderly_password or None,
+            family_first_name=fam_first or None,
+            family_last_name=fam_last or None,
+            family_relationship=str(family.get("relationship") or "") or None,
+            family_birth_date=str(family.get("birth_date") or "") or None,
+            family_email=str(family.get("email") or "") or None,
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        print("!!! REGISTER HATASI:", str(e))
         raise HTTPException(status_code=400, detail=f"Veritabanı kayıt hatası: {str(e)}")
 
 
@@ -612,35 +838,12 @@ class CredentialsAuthRequest(BaseModel):
 @app.post("/api/auth/credentials-login")
 async def credentials_login(request: CredentialsAuthRequest):
     try:
-        response = supabase.table("users").select("id", "name", "age").execute()
-        user_data = response.data
-
-        if not user_data:
-            raise HTTPException(status_code=401, detail="Sistemde kayıtlı hiçbir kullanıcı yok.")
-
-        matched_user = None
-        for user in user_data:
-            db_name = str(user.get("name")).strip().lower().replace("I", "ı").replace("İ", "i")
-            input_name = str(request.name).strip().lower().replace("I", "ı").replace("İ", "i")
-
-            if db_name == input_name and int(user.get("age")) == int(request.age):
-                matched_user = user
-                break
-
-        if matched_user:
-            return {
-                "success": True,
-                "message": f"Giriş Başarılı. Hoş geldin {matched_user['name']}",
-                "user_id": matched_user["id"],
-                "name": matched_user["name"]
-            }
-        else:
-            raise HTTPException(status_code=401, detail="Girdiğiniz ad veya yaş hatalı.")
-
+        return auth_store.credentials_login(name=request.name, age=request.age)
+    except HTTPException:
+        raise
     except Exception as e:
         print("!!! CREDENTIALS-LOGIN HATASI:", str(e))
-        if isinstance(e, HTTPException): raise e
-        raise HTTPException(status_code=400, detail=f"Giriş esnasında hata: {str(e)}")
+        raise HTTPException(status_code=400, detail="Giriş esnasında bir hata oluştu.")
 
 
 if __name__ == "__main__":

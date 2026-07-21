@@ -160,6 +160,32 @@
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
 }
 
+.med-def-card-done {
+    opacity: 0.85;
+    border-color: #A7F3D0;
+    background: #F0FDF4;
+}
+
+.med-def-done-chip,
+.med-def-missed-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.med-def-done-chip {
+    background: #D1FAE5;
+    color: #047857;
+}
+
+.med-def-missed-chip {
+    background: #FEE2E2;
+    color: #B91C1C;
+}
+
 @media (max-width: 768px) {
     .med-def-grid {
         grid-template-columns: 1fr;

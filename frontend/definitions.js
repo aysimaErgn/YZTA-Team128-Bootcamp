@@ -151,18 +151,33 @@ window.MedicationDefinitions = (() => {
 
         state.elderId = data.elder.id;
         localStorage.setItem("elder_id", state.elderId);
+        if (state.userId) {
+            localStorage.setItem("elder_bound_user_id", state.userId);
+        }
         return data.elder;
     }
 
-    async function ensureElder() {
-        if (state.elderId) return state.elderId;
-
+    function isStoredElderBoundToCurrentUser() {
         const storedElderId = localStorage.getItem("elder_id");
-        if (storedElderId) {
-            state.elderId = storedElderId;
+        const boundUserId = localStorage.getItem("elder_bound_user_id");
+        if (!storedElderId || !state.userId) return false;
+        // Demo fallback kimliği farklı olabilir; gerçek login user_id ile bağ olmalı
+        return boundUserId === state.userId;
+    }
+
+    async function ensureElder() {
+        if (state.elderId && isStoredElderBoundToCurrentUser() && state.elderId === localStorage.getItem("elder_id")) {
             return state.elderId;
         }
 
+        if (isStoredElderBoundToCurrentUser()) {
+            state.elderId = localStorage.getItem("elder_id");
+            return state.elderId;
+        }
+
+        // Eski oturumdan kalan elder_id'yi kullanma — kullanıcıya özel sync yap
+        localStorage.removeItem("elder_id");
+        state.elderId = null;
         await syncElder();
         return state.elderId;
     }
@@ -216,18 +231,36 @@ window.MedicationDefinitions = (() => {
                     : '<p class="med-def-empty">Saat tanımlı değil.</p>';
 
                 const kioskActions = schedules
-                    .map(
-                        (schedule) => `
+                    .map((schedule) => {
+                        const status = schedule.today_status;
+                        const timeLabel = formatTimeLabel(schedule.time_of_day);
+                        if (status === "taken") {
+                            return `
+                            <div class="med-def-done-chip">✓ ${timeLabel} — Alındı</div>`;
+                        }
+                        if (status === "missed") {
+                            return `
+                            <div class="med-def-missed-chip">${timeLabel} — Kaçırıldı</div>`;
+                        }
+                        if (status === "wrong_medication") {
+                            return `
+                            <div class="med-def-missed-chip">${timeLabel} — Yanlış ilaç</div>`;
+                        }
+                        return `
                             <button type="button" class="btn btn-success" style="width:auto; padding:10px 16px; font-size:16px;"
                                 onclick="MedicationDefinitions.markTaken('${med.id}', '${schedule.id}', '${med.name.replace(/'/g, "\\'")}')">
-                                ${formatTimeLabel(schedule.time_of_day)} — İçtim
+                                ${timeLabel} — İçtim
                             </button>
                             <button type="button" class="btn btn-neutral" style="width:auto; padding:10px 16px; font-size:16px;"
                                 onclick="MedicationRecognition.open('${med.id}', '${med.name.replace(/'/g, "\\'")}', '${schedule.id}')">
-                                ${formatTimeLabel(schedule.time_of_day)} — Kamerayla Doğrula
-                            </button>`
-                    )
+                                ${timeLabel} — Kamerayla Doğrula
+                            </button>`;
+                    })
                     .join("");
+
+                const allTaken =
+                    schedules.length > 0 &&
+                    schedules.every((schedule) => schedule.today_status === "taken");
 
                 const familyActions =
                     state.mode === "family"
@@ -240,7 +273,7 @@ window.MedicationDefinitions = (() => {
                         : "";
 
                 return `
-                    <div class="med-def-card" id="med-card-${med.id}" data-med-name="${med.name}">
+                    <div class="med-def-card${allTaken ? " med-def-card-done" : ""}" id="med-card-${med.id}" data-med-name="${med.name}">
                         <div class="med-def-card-head">
                             <div>
                                 <div class="med-def-card-title">💊 ${med.name}</div>
@@ -376,19 +409,17 @@ window.MedicationDefinitions = (() => {
                 method: "POST",
                 body: formData,
             });
+            const data = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error("İlaç kaydı oluşturulamadı.");
+                throw new Error(data.detail || "İlaç kaydı oluşturulamadı.");
             }
 
-            const card = document.getElementById(`med-card-${medicationId}`);
-            if (card) {
-                card.style.opacity = "0.65";
-                card.insertAdjacentHTML(
-                    "beforeend",
-                    `<p style="color:#047857; font-weight:700; margin-top:10px;">✓ ${medicationName} alındı olarak kaydedildi.</p>`
-                );
+            if (data?.data?.decision === "skipped") {
+                alert(data.data.message || "Bu doz bugün zaten kaydedilmiş.");
             }
+
+            await refresh();
 
             if (typeof appendMessageToUI === "function") {
                 appendMessageToUI(`${medicationName} ilacı alındı olarak kaydedildi.`, "system");
@@ -426,7 +457,16 @@ window.MedicationDefinitions = (() => {
         const ctx = resolveUserContext(state.mode);
         state.userId = options.userId || ctx.userId;
         state.userName = options.userName || ctx.userName;
-        state.elderId = options.elderId || localStorage.getItem("elder_id") || null;
+        // elder_id yalnızca mevcut kullanıcıya bağlıysa kullan
+        const boundUserId = localStorage.getItem("elder_bound_user_id");
+        const storedElderId = localStorage.getItem("elder_id");
+        if (options.elderId) {
+            state.elderId = options.elderId;
+        } else if (storedElderId && boundUserId && boundUserId === state.userId) {
+            state.elderId = storedElderId;
+        } else {
+            state.elderId = null;
+        }
 
         try {
             await ensureElder();

@@ -5,9 +5,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Yanımda Al - Dijital Refakatçi</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="recognition.css">
-    <link rel="stylesheet" href="definitions.css">
+    <script>
+        // http.server "/" → index.html; oturum yoksa onboarding açılsın
+        (function () {
+            var userId = localStorage.getItem("user_id");
+            var role = localStorage.getItem("user_role");
+            if (!userId) {
+                window.location.replace("onboarding.html");
+                return;
+            }
+            if (role === "family") {
+                window.location.replace("family-dashboard.html");
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="style.css?v=20260721c">
+    <link rel="stylesheet" href="recognition.css?v=20260721c">
+    <link rel="stylesheet" href="definitions.css?v=20260721c">
 </head>
 
 <body>
@@ -17,20 +31,25 @@
     </header>
 
     <div class="app-container">
-        
-        <div class="history-sidebar" id="historySidebar">
-            <div>
-                <div class="history-section-title">Sohbet Geçmişi</div>
-                <div class="history-list" id="history-today">
-                    </div>
-            </div>
-        </div>
-
         <nav>
             <button class="nav-btn active" id="nav-sohbet" onclick="switchPage('sohbet')"><span>💬</span><span>Sohbet</span></button>
             <button class="nav-btn" id="nav-ilaclar" onclick="switchPage('ilaclar')"><span>💊</span><span>İlaçlarım</span></button>
             <button class="nav-btn" id="nav-durum" onclick="switchPage('durum')"><span>☀️</span><span>Durumum</span></button>
         </nav>
+
+        <div class="history-sidebar" id="historySidebar">
+            <div class="history-sidebar-inner">
+                <div class="history-sidebar-head">
+                    <div class="history-section-title">Sohbetler</div>
+                    <button type="button" class="sidebar-collapse-btn" onclick="toggleHistorySidebar()" title="Gizle" aria-label="Gizle">✕</button>
+                </div>
+                <button type="button" class="history-new-chat" id="historyNewChatBtn">Yeni sohbet</button>
+                <div class="history-list" id="history-today"></div>
+                <p id="historyEmptyHint" class="history-empty-hint" style="display:none;">Henüz sohbet yok.</p>
+            </div>
+        </div>
+        <button type="button" class="history-reopen-btn is-hidden" id="historyReopenBtn" onclick="openHistorySidebar()" title="Sohbetler">☰</button>
+        <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeHistorySidebar()"></div>
 
         <div class="main-content">
             <div class="page active" id="page-sohbet">
@@ -110,10 +129,10 @@
         </div>
     </div>
 
-    <script src="config.js"></script>
-    <script src="definitions.js"></script>
-    <script src="recognition.js"></script>
-    <script src="app.js"></script>
+    <script src="config.js?v=20260721c"></script>
+    <script src="definitions.js?v=20260721f"></script>
+    <script src="recognition.js?v=20260721c"></script>
+    <script src="app.js?v=20260721f"></script>
 </body>
 
 </html>

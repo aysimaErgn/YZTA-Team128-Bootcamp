@@ -66,6 +66,13 @@ def record_manual_taken(
     schedule_id: str | None,
     confirmation_method: str = "button",
 ) -> dict[str, Any]:
+    if medication_service.has_schedule_been_resolved_today(medication_id, schedule_id):
+        return {
+            "decision": "skipped",
+            "message": "Bu doz bugün zaten kaydedilmiş.",
+            "log": None,
+        }
+
     log = medication_service.create_medication_log(
         medication_id=medication_id,
         schedule_id=schedule_id,
