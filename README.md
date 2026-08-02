@@ -281,3 +281,38 @@ Görevleri yerine getirilmiştir. Bu sprint için yapılması planlanan fakat ta
 Bu sprintte proje, planlanan ilerleme hızına tam olarak ulaşamamıştır. Buna rağmen 2. sprint için planlanan görevlerin çoğunluğu tamamlanmıştır. Tamamlanamayan 2 task bir sonraki sprinte aktarılmıştır. Sonraki sprint bootcamp sürecinin son sprinti olup projenin nihayete erdirilmesi kararlaştırılmıştır.
 
 
+
+# Sprint 3
+
+## Backlog Dağıtma Mantığı
+
+Bu sprintte de bir önceki sprintte olduğu gibi backlog dağıtımı takım müsaitliğine göre planlanmıştır.
+
+## Daily Scrum Notları
+
+Tüm süreç Whatsapp sohbeti şeklinde yürütülmüştür. Sohbetlerle ilgili görseller aşağıdaki linktedir.
+
+https://drive.google.com/drive/u/0/folders/1kGuULcNv8iZqNWOb7e-LAQwvRFm9_USn
+
+### Sprint Board Durumu
+
+<img width="1530" height="672" alt="image" src="https://github.com/user-attachments/assets/e365dbf0-6199-43fe-b0d6-12eb7f5c73d1" />
+
+
+### Ürün Durumu
+
+Ürünün bütün durumu aşağıdaki linki bulunan YouTube videosunda yer almaktadır.
+
+https://youtu.be/FFZCfrA_exs
+
+Ayrıca uygulama canlıya alınmış olup aşağıdaki linkten erişilebilir durumdadır.
+
+https://yanimda-ai.onrender.com
+
+#### Sprint Review
+
+Bu sprintte tamamlanması gereken tüm taskler tamamlanmıştır. Proje sonlandırılmıştır.
+
+### Sprint Retrospective
+
+Son sprint takım tarafından titizlikle tamamlandı. Tüm süreç gözden geçirildi. Beklenen sonuca erişildiği konusunda tüm takım hemfikirdir.
