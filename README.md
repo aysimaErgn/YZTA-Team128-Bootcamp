@@ -184,7 +184,7 @@ https://trello.com/invite/b/6a3d3aede057f19cb52a71e2/ATTIc79c0a42c416fbe1b7ca320
 * [ ] UI/UX İyileştirmeleri
 * [ ] Test Süreçleri
 * [ ] Demo Videosu
-* [ ] Sunum Hazırlığı
+* [ ] Uygulamanın Canlıya Alınması
 
 ---
 
@@ -303,7 +303,7 @@ https://drive.google.com/drive/u/0/folders/1kGuULcNv8iZqNWOb7e-LAQwvRFm9_USn
 
 Ürünün bütün durumu aşağıdaki linki bulunan YouTube videosunda yer almaktadır.
 
-https://youtu.be/FFZCfrA_exs
+https://www.youtube.com/watch?v=5Nxmqgai-oo
 
 Ayrıca uygulama canlıya alınmış olup aşağıdaki linkten erişilebilir durumdadır.
 
